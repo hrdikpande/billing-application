@@ -101,7 +101,12 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
       setBills(userBills);
       setDataStats(stats);
       
-      console.log(`Loaded data for ${user.businessName}: ${fixedProducts.length} products, ${userCustomers.length} customers, ${userBills.length} bills`);
+      console.log(`Loaded data for ${user.businessName}:`, {
+        products: fixedProducts.length,
+        customers: userCustomers.length,
+        bills: userBills.length,
+        billsWithItems: userBills.filter(b => b.items && b.items.length > 0).length
+      });
     } catch (error) {
       console.error('Error loading user data:', error);
       toast.error('Failed to load your data');
@@ -314,7 +319,8 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
 
   // Bill operations
   const initNewBill = (customer: Customer) => {
-    setCurrentBill({
+    console.log('Initializing new bill for customer:', customer);
+    const newBill: Bill = {
       id: uuidv4(),
       billNumber: generateBillNumber(),
       customer,
@@ -326,66 +332,114 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
       billDiscountAmount: 0,
       total: 0,
       createdAt: Date.now()
-    });
+    };
+    
+    setCurrentBill(newBill);
+    console.log('New bill initialized:', newBill);
   };
 
   const addItemToBill = (item: BillItem) => {
-    if (!currentBill) return;
+    if (!currentBill) {
+      console.error('No current bill to add item to');
+      return;
+    }
     
-    const newItems = [...currentBill.items, item];
+    console.log('Adding item to bill:', item);
+    
+    // Ensure item has all required fields
+    const completeItem: BillItem = {
+      ...item,
+      id: item.id || uuidv4(),
+      productId: item.product.id,
+      subtotal: item.subtotal || (item.quantity * item.unitPrice),
+      total: item.total || (item.subtotal - (item.discountAmount || 0)),
+      discountAmount: item.discountAmount || 0,
+      taxAmount: item.taxAmount || 0
+    };
+    
+    const newItems = [...currentBill.items, completeItem];
     const totals = calculateBillTotals(newItems, currentBill.billDiscountType, currentBill.billDiscountValue);
     
-    setCurrentBill({
+    const updatedBill = {
       ...currentBill,
       items: newItems,
       ...totals
-    });
+    };
+    
+    setCurrentBill(updatedBill);
+    console.log('Bill updated with new item:', updatedBill);
   };
 
   const updateBillItem = (index: number, item: BillItem) => {
     if (!currentBill) return;
     
+    console.log('Updating bill item at index:', index, item);
+    
+    // Ensure item has all required fields
+    const completeItem: BillItem = {
+      ...item,
+      id: item.id || uuidv4(),
+      productId: item.product.id,
+      subtotal: item.subtotal || (item.quantity * item.unitPrice),
+      total: item.total || (item.subtotal - (item.discountAmount || 0)),
+      discountAmount: item.discountAmount || 0,
+      taxAmount: item.taxAmount || 0
+    };
+    
     const newItems = [...currentBill.items];
-    newItems[index] = item;
+    newItems[index] = completeItem;
     
     const totals = calculateBillTotals(newItems, currentBill.billDiscountType, currentBill.billDiscountValue);
     
-    setCurrentBill({
+    const updatedBill = {
       ...currentBill,
       items: newItems,
       ...totals
-    });
+    };
+    
+    setCurrentBill(updatedBill);
+    console.log('Bill updated with modified item:', updatedBill);
   };
 
   const removeBillItem = (index: number) => {
     if (!currentBill) return;
     
+    console.log('Removing bill item at index:', index);
+    
     const newItems = currentBill.items.filter((_, i) => i !== index);
     const totals = calculateBillTotals(newItems, currentBill.billDiscountType, currentBill.billDiscountValue);
     
-    setCurrentBill({
+    const updatedBill = {
       ...currentBill,
       items: newItems,
       ...totals
-    });
+    };
+    
+    setCurrentBill(updatedBill);
+    console.log('Bill updated after item removal:', updatedBill);
   };
 
   const updateBillDiscount = (discountType: 'fixed' | 'percentage', discountValue: number) => {
     if (!currentBill) return;
     
+    console.log('Updating bill discount:', { discountType, discountValue });
+    
     const totals = calculateBillTotals(currentBill.items, discountType, discountValue);
     
-    setCurrentBill({
+    const updatedBill = {
       ...currentBill,
       billDiscountType: discountType,
       billDiscountValue: discountValue,
       ...totals
-    });
+    };
+    
+    setCurrentBill(updatedBill);
+    console.log('Bill updated with discount:', updatedBill);
   };
 
   const calculateBillTotals = (items: BillItem[], billDiscountType?: 'fixed' | 'percentage', billDiscountValue?: number) => {
-    const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
-    const itemDiscounts = items.reduce((sum, item) => sum + item.discountAmount, 0);
+    const subtotal = items.reduce((sum, item) => sum + (item.subtotal || 0), 0);
+    const itemDiscounts = items.reduce((sum, item) => sum + (item.discountAmount || 0), 0);
     
     // Calculate bill-level discount
     let billDiscountAmount = 0;
@@ -409,9 +463,29 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
   };
 
   const saveBill = async (note?: string) => {
-    if (!currentBill) return;
+    if (!currentBill) {
+      console.error('No current bill to save');
+      throw new Error('No current bill to save');
+    }
+    
+    if (!currentBill.items || currentBill.items.length === 0) {
+      console.error('Cannot save bill without items');
+      throw new Error('Cannot save bill without items');
+    }
     
     try {
+      console.log('Saving bill:', currentBill);
+      
+      // Validate all items before saving
+      const invalidItems = currentBill.items.filter(item => 
+        !item.product || !item.product.id || !item.quantity || !item.unitPrice
+      );
+      
+      if (invalidItems.length > 0) {
+        console.error('Invalid items found:', invalidItems);
+        throw new Error('Some items have invalid data');
+      }
+      
       const billToSave = {
         ...currentBill,
         notes: note || currentBill.note,
@@ -419,24 +493,30 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
         updatedAt: Date.now()
       };
       
+      console.log('Bill data being saved:', billToSave);
+      
       const result = await userDataService.createUserBill(billToSave);
       if (result.success && result.bill) {
         const newBills = [...bills, result.bill];
         setBills(newBills);
         setCurrentBill(null);
         await updateDataStats();
+        console.log('Bill saved successfully:', result.bill);
         toast.success('Bill saved successfully');
       } else {
-        toast.error(result.message);
+        console.error('Failed to save bill:', result.message);
+        throw new Error(result.message);
       }
     } catch (error) {
       console.error('Error saving bill:', error);
-      toast.error('Failed to save bill');
+      throw error;
     }
   };
 
   const getBillById = (id: string) => {
-    return bills.find(bill => bill.id === id);
+    const bill = bills.find(bill => bill.id === id);
+    console.log('Getting bill by ID:', id, bill);
+    return bill;
   };
 
   const deleteBill = async (id: string) => {
@@ -460,6 +540,7 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
     try {
       const userBills = await userDataService.getUserBills();
       setBills(userBills);
+      console.log('Bills refreshed:', userBills);
     } catch (error) {
       console.error('Error refreshing bills:', error);
       toast.error('Failed to refresh bills');

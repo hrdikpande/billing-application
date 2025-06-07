@@ -41,9 +41,12 @@ const BillItemForm: React.FC<BillItemFormProps> = ({
     discountValue?: string;
   }>({});
 
+  // Get unit price from product (handle multiple field names)
+  const unitPrice = product.unitPrice || product.price || 0;
+
   useEffect(() => {
     if (validateQuantity(quantity) && validateDiscount(discountValue, discountType)) {
-      const newSubtotal = calculateItemSubtotal(product.price || product.unitPrice, quantity);
+      const newSubtotal = calculateItemSubtotal(unitPrice, quantity);
       const newDiscountAmount = calculateItemDiscount(
         newSubtotal,
         discountType,
@@ -55,7 +58,7 @@ const BillItemForm: React.FC<BillItemFormProps> = ({
       setDiscountAmount(newDiscountAmount);
       setTotal(newTotal);
     }
-  }, [quantity, discountType, discountValue, product.price, product.unitPrice]);
+  }, [quantity, discountType, discountValue, unitPrice]);
 
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseInt(e.target.value);
@@ -106,19 +109,24 @@ const BillItemForm: React.FC<BillItemFormProps> = ({
       return;
     }
 
+    // Create complete bill item with all required fields
     const billItem: BillItem = {
+      id: existingItem?.id,
       product,
+      productId: product.id,
       quantity,
-      unitPrice: product.price || product.unitPrice,
+      unitPrice,
       discountType,
       discountValue,
       discountPercentage: discountType === 'percentage' ? discountValue : 0,
       discountAmount,
       taxRate: product.taxRate || 0,
+      taxAmount: 0, // Calculate if needed
       subtotal,
       total,
     };
 
+    console.log('Submitting bill item:', billItem);
     onSave(billItem);
   };
 
@@ -134,8 +142,18 @@ const BillItemForm: React.FC<BillItemFormProps> = ({
           <div>
             <span className="text-gray-500">Price:</span>
             <span className="ml-2 text-gray-700">
-              {formatCurrency(product.price || product.unitPrice)}
+              {formatCurrency(unitPrice)}
             </span>
+          </div>
+          {product.stockQuantity !== undefined && (
+            <div>
+              <span className="text-gray-500">Stock:</span>
+              <span className="ml-2 text-gray-700">{product.stockQuantity}</span>
+            </div>
+          )}
+          <div>
+            <span className="text-gray-500">Unit:</span>
+            <span className="ml-2 text-gray-700">{product.unitOfMeasurement || 'pcs'}</span>
           </div>
         </div>
       </div>
@@ -198,6 +216,16 @@ const BillItemForm: React.FC<BillItemFormProps> = ({
       <div className="bg-gray-50 p-4 rounded-md mt-4">
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div>
+            <span className="text-gray-500">Unit Price:</span>
+            <span className="ml-2 text-gray-700">
+              {formatCurrency(unitPrice)}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-500">Quantity:</span>
+            <span className="ml-2 text-gray-700">{quantity}</span>
+          </div>
+          <div>
             <span className="text-gray-500">Subtotal:</span>
             <span className="ml-2 text-gray-700">
               {formatCurrency(subtotal)}
@@ -206,7 +234,7 @@ const BillItemForm: React.FC<BillItemFormProps> = ({
           <div>
             <span className="text-gray-500">Discount:</span>
             <span className="ml-2 text-gray-700">
-              {formatCurrency(discountAmount)}
+              -{formatCurrency(discountAmount)}
             </span>
           </div>
         </div>

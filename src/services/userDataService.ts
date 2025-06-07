@@ -274,6 +274,7 @@ class UserDataService {
         if (bill) bills.push(bill);
       }
       
+      console.log(`Loaded ${bills.length} bills for user ${userId}`);
       return bills;
     } catch (error) {
       console.error('Error loading user bills:', error);
@@ -285,6 +286,13 @@ class UserDataService {
     const userId = this.getCurrentUserId();
     
     try {
+      console.log('Creating bill in database:', billData);
+      
+      // Validate bill data
+      if (!billData.items || !Array.isArray(billData.items) || billData.items.length === 0) {
+        return { success: false, message: 'Bill must have at least one item' };
+      }
+      
       const billId = uuidv4();
       const now = Date.now();
 
@@ -306,8 +314,15 @@ class UserDataService {
         billData.notes || billData.note || null, billData.promoCode || null, now, now
       ]);
 
-      // Insert bill items
+      console.log('Bill inserted, now inserting items:', billData.items);
+
+      // Insert bill items with validation
       for (const item of billData.items) {
+        if (!item.product || !item.product.id) {
+          console.error('Invalid item - missing product:', item);
+          continue;
+        }
+        
         const itemQuery = `
           INSERT INTO bill_items (
             id, bill_id, product_id, quantity, unit_price, discount_type,
@@ -316,15 +331,19 @@ class UserDataService {
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
+        const itemId = uuidv4();
         await multiTenantDb.executeUpdate(userId, itemQuery, [
-          uuidv4(), billId, item.product.id, item.quantity, item.unitPrice,
+          itemId, billId, item.product.id, item.quantity, item.unitPrice,
           item.discountType || 'fixed', item.discountValue || 0,
           item.discountPercentage || 0, item.discountAmount || 0,
           item.taxRate || 0, item.taxAmount || 0, item.subtotal, item.total
         ]);
+        
+        console.log('Inserted bill item:', itemId, item.product.name);
       }
 
       const bill = await this.getUserBillById(billId);
+      console.log('Bill created successfully:', bill);
       return { success: true, message: 'Bill created successfully', bill: bill! };
     } catch (error) {
       console.error('Error creating user bill:', error);
@@ -382,7 +401,10 @@ class UserDataService {
     try {
       // Get customer
       const customer = await this.getUserCustomerById(billData.customer_id);
-      if (!customer) return null;
+      if (!customer) {
+        console.error('Customer not found for bill:', billData.id);
+        return null;
+      }
 
       // Get bill items
       const itemResults = await multiTenantDb.executeQueryAll(
@@ -391,13 +413,16 @@ class UserDataService {
         [billData.id]
       );
       
+      console.log(`Loading bill ${billData.bill_number} with ${itemResults.length} items`);
+      
       const items = [];
       for (const itemData of itemResults) {
         const product = await this.getUserProductById(itemData.product_id);
         if (product) {
-          items.push({
+          const billItem = {
             id: itemData.id,
             product,
+            productId: itemData.product_id,
             quantity: itemData.quantity,
             unitPrice: itemData.unit_price,
             discountType: itemData.discount_type || 'fixed',
@@ -408,11 +433,15 @@ class UserDataService {
             taxAmount: itemData.tax_amount || 0,
             subtotal: itemData.subtotal,
             total: itemData.total
-          });
+          };
+          items.push(billItem);
+          console.log('Loaded bill item:', billItem.product.name, billItem.quantity);
+        } else {
+          console.warn('Product not found for bill item:', itemData.product_id);
         }
       }
 
-      return {
+      const bill: Bill = {
         id: billData.id,
         billNumber: billData.bill_number,
         customer,
@@ -433,6 +462,9 @@ class UserDataService {
         createdAt: billData.created_at,
         updatedAt: billData.updated_at
       };
+      
+      console.log(`Bill loaded: ${bill.billNumber} with ${bill.items.length} items`);
+      return bill;
     } catch (error) {
       console.error('Error getting bill with details:', error);
       return null;

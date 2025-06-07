@@ -10,6 +10,7 @@ import BillItemsTable from '../components/BillItemsTable';
 import BillDiscountForm from '../components/BillDiscountForm';
 import { Customer, Product, BillItem } from '../types';
 import { formatCurrency } from '../utils/calculations';
+import toast from 'react-hot-toast';
 
 const NewBill: React.FC = () => {
   const navigate = useNavigate();
@@ -34,6 +35,7 @@ const NewBill: React.FC = () => {
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
   const [billNote, setBillNote] = useState('');
   const [showBillDiscount, setShowBillDiscount] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   useEffect(() => {
     // Reset the current bill when component mounts
@@ -43,6 +45,7 @@ const NewBill: React.FC = () => {
   }, [currentBill]);
   
   const handleSelectCustomer = (customer: Customer) => {
+    console.log('Selected customer:', customer);
     initNewBill(customer);
     setStep('create-bill');
   };
@@ -52,18 +55,31 @@ const NewBill: React.FC = () => {
   };
   
   const handleSaveCustomer = async (customer: Customer) => {
-    await addCustomer(customer);
-    setShowAddCustomer(false);
-    handleSelectCustomer(customer);
+    try {
+      await addCustomer(customer);
+      setShowAddCustomer(false);
+      handleSelectCustomer(customer);
+      toast.success('Customer added successfully');
+    } catch (error) {
+      console.error('Error adding customer:', error);
+      toast.error('Failed to add customer');
+    }
   };
   
   const handleSelectProduct = (product: Product) => {
+    console.log('Selected product:', product);
     setSelectedProduct(product);
     setShowProductSelection(false);
     setShowAddItem(true);
   };
   
   const handleAddItem = () => {
+    if (products.length === 0) {
+      toast.error('Please add products first');
+      navigate('/products');
+      return;
+    }
+    
     setEditingItemIndex(null);
     setSelectedProduct(null);
     setShowAddItem(false);
@@ -81,19 +97,58 @@ const NewBill: React.FC = () => {
   const handleDeleteItem = (index: number) => {
     if (window.confirm('Are you sure you want to remove this item?')) {
       removeBillItem(index);
+      toast.success('Item removed from bill');
     }
   };
   
   const handleSaveItem = (item: BillItem) => {
-    if (editingItemIndex !== null) {
-      updateBillItem(editingItemIndex, item);
-    } else {
-      addItemToBill(item);
+    try {
+      console.log('Saving item:', item);
+      
+      // Validate item data
+      if (!item.product || !item.product.id) {
+        toast.error('Invalid product data');
+        return;
+      }
+      
+      if (!item.quantity || item.quantity <= 0) {
+        toast.error('Quantity must be greater than 0');
+        return;
+      }
+      
+      if (!item.unitPrice || item.unitPrice <= 0) {
+        toast.error('Unit price must be greater than 0');
+        return;
+      }
+      
+      // Ensure all required fields are present
+      const completeItem: BillItem = {
+        ...item,
+        id: item.id || `item_${Date.now()}`,
+        productId: item.product.id,
+        subtotal: item.subtotal || (item.quantity * item.unitPrice),
+        total: item.total || (item.subtotal - (item.discountAmount || 0)),
+        discountAmount: item.discountAmount || 0,
+        taxAmount: item.taxAmount || 0
+      };
+      
+      if (editingItemIndex !== null) {
+        updateBillItem(editingItemIndex, completeItem);
+        toast.success('Item updated successfully');
+      } else {
+        addItemToBill(completeItem);
+        toast.success('Item added to bill');
+      }
+      
+      setShowAddItem(false);
+      setShowProductSelection(false);
+      setSelectedProduct(null);
+      setEditingItemIndex(null);
+      
+    } catch (error) {
+      console.error('Error saving item:', error);
+      toast.error('Failed to save item');
     }
-    setShowAddItem(false);
-    setShowProductSelection(false);
-    setSelectedProduct(null);
-    setEditingItemIndex(null);
   };
 
   const handleCancelItemForm = () => {
@@ -108,12 +163,40 @@ const NewBill: React.FC = () => {
   };
   
   const handleFinalizeBill = async () => {
-    if (!currentBill || currentBill.items.length === 0) {
+    if (!currentBill) {
+      toast.error('No bill to save');
       return;
     }
     
-    await saveBill(billNote.trim() || undefined);
-    navigate('/bill-history');
+    if (!currentBill.items || currentBill.items.length === 0) {
+      toast.error('Please add at least one item to the bill');
+      return;
+    }
+    
+    // Validate all items have required data
+    const invalidItems = currentBill.items.filter(item => 
+      !item.product || !item.product.id || !item.quantity || !item.unitPrice
+    );
+    
+    if (invalidItems.length > 0) {
+      toast.error('Some items have invalid data. Please check all items.');
+      return;
+    }
+    
+    try {
+      setIsSaving(true);
+      console.log('Saving bill with items:', currentBill.items);
+      
+      await saveBill(billNote.trim() || undefined);
+      toast.success('Bill saved successfully');
+      navigate('/bill-history');
+      
+    } catch (error) {
+      console.error('Error saving bill:', error);
+      toast.error('Failed to save bill');
+    } finally {
+      setIsSaving(false);
+    }
   };
   
   const handleCancel = () => {
@@ -124,7 +207,7 @@ const NewBill: React.FC = () => {
 
   const getItemDiscountsTotal = (): number => {
     if (!currentBill) return 0;
-    return currentBill.items.reduce((sum, item) => sum + item.discountAmount, 0);
+    return currentBill.items.reduce((sum, item) => sum + (item.discountAmount || 0), 0);
   };
   
   // If we're still at the customer selection step
@@ -157,13 +240,33 @@ const NewBill: React.FC = () => {
             />
           </div>
         ) : (
-          <CustomersList
-            customers={customers}
-            onEdit={() => {}}
-            onDelete={() => {}}
-            onSelect={handleSelectCustomer}
-            selectable
-          />
+          <>
+            {customers.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-lg">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  No customers available
+                </h3>
+                <p className="text-gray-500 mb-6">
+                  You need to add a customer before creating a bill.
+                </p>
+                <button
+                  onClick={handleAddCustomer}
+                  className="btn btn-primary flex items-center justify-center space-x-2"
+                >
+                  <UserPlus size={18} />
+                  <span>Add Your First Customer</span>
+                </button>
+              </div>
+            ) : (
+              <CustomersList
+                customers={customers}
+                onEdit={() => {}}
+                onDelete={() => {}}
+                onSelect={handleSelectCustomer}
+                selectable
+              />
+            )}
+          </>
         )}
       </div>
     );
@@ -197,12 +300,15 @@ const NewBill: React.FC = () => {
       {/* Bill Items */}
       <div className="card">
         <div className="p-4 sm:p-6 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
-          <h2 className="text-lg font-medium text-gray-900">Bill Items</h2>
+          <h2 className="text-lg font-medium text-gray-900">
+            Bill Items ({currentBill?.items?.length || 0})
+          </h2>
           
           <div className="flex space-x-3">
             <button
               onClick={handleAddItem}
               className="btn btn-primary flex items-center space-x-2"
+              disabled={products.length === 0}
             >
               <Plus size={18} />
               <span>Add Item</span>
@@ -268,15 +374,36 @@ const NewBill: React.FC = () => {
           
           {/* Bill Items Table */}
           {currentBill && (
-            <BillItemsTable
-              items={currentBill.items}
-              onEdit={handleEditItem}
-              onDelete={handleDeleteItem}
-            />
+            <>
+              {currentBill.items && currentBill.items.length > 0 ? (
+                <BillItemsTable
+                  items={currentBill.items}
+                  onEdit={handleEditItem}
+                  onDelete={handleDeleteItem}
+                />
+              ) : (
+                <div className="text-center py-8 bg-gray-50 rounded-md">
+                  <p className="text-gray-500 mb-4">No items added to this bill yet.</p>
+                  <button
+                    onClick={handleAddItem}
+                    className="btn btn-primary flex items-center justify-center space-x-2"
+                    disabled={products.length === 0}
+                  >
+                    <Plus size={18} />
+                    <span>Add Your First Item</span>
+                  </button>
+                  {products.length === 0 && (
+                    <p className="text-sm text-gray-400 mt-2">
+                      You need to add products first
+                    </p>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
         
-        {currentBill && currentBill.items.length > 0 && (
+        {currentBill && currentBill.items && currentBill.items.length > 0 && (
           <div className="p-4 sm:p-6 border-t border-gray-200">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Bill Discount Section */}
@@ -369,6 +496,7 @@ const NewBill: React.FC = () => {
         <button
           onClick={handleCancel}
           className="btn btn-outline flex items-center space-x-2"
+          disabled={isSaving}
         >
           <ArrowLeft size={18} />
           <span>Cancel</span>
@@ -377,10 +505,14 @@ const NewBill: React.FC = () => {
         <button
           onClick={handleFinalizeBill}
           className="btn btn-primary flex items-center space-x-2"
-          disabled={!currentBill || currentBill.items.length === 0}
+          disabled={!currentBill || !currentBill.items || currentBill.items.length === 0 || isSaving}
         >
-          <FileCheck size={18} />
-          <span>Finalize Bill</span>
+          {isSaving ? (
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+          ) : (
+            <FileCheck size={18} />
+          )}
+          <span>{isSaving ? 'Saving...' : 'Finalize Bill'}</span>
         </button>
       </div>
     </div>
