@@ -42,6 +42,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
     name?: string;
     code?: string;
     unitPrice?: string;
+    stockQuantity?: string;
   }>({});
 
   useEffect(() => {
@@ -84,6 +85,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
       name?: string;
       code?: string;
       unitPrice?: string;
+      stockQuantity?: string;
     } = {};
 
     if (!validateProductName(formData.name)) {
@@ -96,6 +98,10 @@ const ProductForm: React.FC<ProductFormProps> = ({
 
     if (!validateProductPrice(formData.unitPrice)) {
       newErrors.unitPrice = 'Price must be a positive number';
+    }
+
+    if (formData.stockQuantity < 0) {
+      newErrors.stockQuantity = 'Stock quantity cannot be negative';
     }
 
     setErrors(newErrors);
@@ -192,7 +198,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
 
         <div className="form-group">
           <label htmlFor="stockQuantity" className="form-label">
-            Stock Quantity
+            Stock Quantity <span className="text-red-500">*</span>
           </label>
           <input
             type="number"
@@ -200,9 +206,17 @@ const ProductForm: React.FC<ProductFormProps> = ({
             name="stockQuantity"
             value={formData.stockQuantity}
             onChange={handleChange}
-            className="input"
+            className={`input ${errors.stockQuantity ? 'border-red-500' : ''}`}
             min="0"
+            step="1"
+            required
           />
+          {errors.stockQuantity && (
+            <p className="text-red-500 text-xs mt-1">{errors.stockQuantity}</p>
+          )}
+          <p className="text-gray-500 text-xs mt-1">
+            Current stock level for inventory management
+          </p>
         </div>
 
         <div className="form-group">
