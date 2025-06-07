@@ -84,20 +84,36 @@ const NewBill: React.FC = () => {
   };
   
   const handleAddItem = () => {
+    console.log('Add item clicked');
+    console.log('Current bill exists:', !!currentBill);
+    console.log('Products available:', products.length);
+    
+    if (!currentBill) {
+      toast.error('Please select a customer first');
+      setStep('select-customer');
+      return;
+    }
+    
     if (products.length === 0) {
       toast.error('Please add products first');
       navigate('/products');
       return;
     }
     
+    // Reset states
     setEditingItemIndex(null);
     setSelectedProduct(null);
     setShowAddItem(false);
+    
+    // Show product selection
     setShowProductSelection(true);
+    console.log('Product selection shown');
   };
   
   const handleEditItem = (index: number) => {
     if (!currentBill) return;
+    
+    console.log('Editing item at index:', index);
     setEditingItemIndex(index);
     setSelectedProduct(currentBill.items[index].product);
     setShowProductSelection(false);
@@ -154,6 +170,7 @@ const NewBill: React.FC = () => {
         toast.success('Item added to bill');
       }
       
+      // Reset form states
       setShowAddItem(false);
       setShowProductSelection(false);
       setSelectedProduct(null);
@@ -166,6 +183,7 @@ const NewBill: React.FC = () => {
   };
 
   const handleCancelItemForm = () => {
+    console.log('Canceling item form');
     setShowAddItem(false);
     setShowProductSelection(false);
     setSelectedProduct(null);
