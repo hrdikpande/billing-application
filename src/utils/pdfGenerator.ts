@@ -507,7 +507,6 @@ export const printBillPDF = async (bill: Bill, businessInfo: User): Promise<void
       };
     } else {
       URL.revokeObjectURL(blobUrl);
-      await downloadBillPDF(bill, businessInfo);
       throw new Error('Print popup was blocked. PDF has been downloaded instead.');
     }
   } catch (error) {
