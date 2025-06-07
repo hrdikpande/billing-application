@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Pencil, Trash2, Search, User } from 'lucide-react';
 import { Customer } from '../types';
 import { formatDate } from '../utils/calculations';
+import toast from 'react-hot-toast';
 
 interface CustomersListProps {
   customers: Customer[];
@@ -19,12 +20,42 @@ const CustomersList: React.FC<CustomersListProps> = ({
   selectable = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   const filteredCustomers = customers.filter(
     (customer) =>
       customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.phone.includes(searchTerm)
   );
+
+  const handleDelete = async (id: string, customerName: string) => {
+    if (!window.confirm(`Are you sure you want to delete customer "${customerName}"?`)) {
+      return;
+    }
+
+    try {
+      setIsDeleting(id);
+      await onDelete(id);
+      toast.success('Customer deleted successfully');
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      toast.error('Failed to delete customer');
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
+  const handleSelect = (customer: Customer) => {
+    console.log('Customer selected:', customer);
+    if (onSelect) {
+      onSelect(customer);
+    }
+  };
+
+  const handleEdit = (customer: Customer) => {
+    console.log('Editing customer:', customer);
+    onEdit(customer);
+  };
 
   return (
     <div className="card animate-fade-in">
@@ -48,14 +79,17 @@ const CustomersList: React.FC<CustomersListProps> = ({
           {filteredCustomers.map((customer) => (
             <div
               key={customer.id}
-              className="p-4 hover:bg-gray-50 transition-colors"
+              className={`p-4 transition-colors ${
+                selectable ? 'hover:bg-blue-50 cursor-pointer' : 'hover:bg-gray-50'
+              }`}
+              onClick={selectable ? () => handleSelect(customer) : undefined}
             >
               <div className="flex items-start justify-between">
-                <div className="flex items-start">
+                <div className="flex items-start flex-1">
                   <div className="flex-shrink-0 bg-blue-100 rounded-full p-2">
                     <User size={24} className="text-blue-600" />
                   </div>
-                  <div className="ml-3">
+                  <div className="ml-3 flex-1">
                     <h3 className="text-sm font-medium text-gray-900">
                       {customer.name}
                     </h3>
@@ -63,32 +97,60 @@ const CustomersList: React.FC<CustomersListProps> = ({
                     {customer.email && (
                       <p className="text-sm text-gray-500">{customer.email}</p>
                     )}
+                    {customer.address && (
+                      <p className="text-sm text-gray-500 mt-1 line-clamp-2">{customer.address}</p>
+                    )}
+                    {customer.gstin && (
+                      <p className="text-xs text-gray-400 mt-1">GSTIN: {customer.gstin}</p>
+                    )}
                     <p className="text-xs text-gray-400 mt-1">
                       Added on {formatDate(customer.createdAt)}
                     </p>
                   </div>
                 </div>
-                <div className="flex space-x-2">
+                
+                <div className="flex items-center space-x-2 ml-4">
                   {selectable && (
                     <button
-                      onClick={() => onSelect && onSelect(customer)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelect(customer);
+                      }}
                       className="btn btn-primary px-3 py-1 text-xs"
                     >
                       Select
                     </button>
                   )}
-                  <button
-                    onClick={() => onEdit(customer)}
-                    className="text-blue-600 hover:text-blue-800"
-                  >
-                    <Pencil size={18} />
-                  </button>
-                  <button
-                    onClick={() => onDelete(customer.id)}
-                    className="text-red-600 hover:text-red-800"
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                  
+                  {!selectable && (
+                    <>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEdit(customer);
+                        }}
+                        className="text-blue-600 hover:text-blue-800 transition-colors p-1"
+                        title="Edit Customer"
+                      >
+                        <Pencil size={18} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(customer.id, customer.name);
+                        }}
+                        disabled={isDeleting === customer.id}
+                        className="text-red-600 hover:text-red-800 transition-colors disabled:opacity-50 p-1"
+                        title="Delete Customer"
+                      >
+                        {isDeleting === customer.id ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                        ) : (
+                          <Trash2 size={18} />
+                        )}
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

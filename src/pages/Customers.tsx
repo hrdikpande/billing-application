@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react';
 import CustomersList from '../components/CustomersList';
 import CustomerForm from '../components/CustomerForm';
 import { Customer } from '../types';
+import toast from 'react-hot-toast';
 
 const Customers: React.FC = () => {
   const { customers, addCustomer, updateCustomer, deleteCustomer } = useEnhancedBilling();
@@ -17,22 +18,39 @@ const Customers: React.FC = () => {
   };
   
   const handleEdit = (customer: Customer) => {
+    console.log('Editing customer:', customer);
     setEditingCustomer(customer);
     setShowAddForm(true);
   };
   
   const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this customer?')) {
+    try {
       await deleteCustomer(id);
+      // Success message is handled in CustomersList component
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      throw error; // Re-throw to let CustomersList handle the error
     }
   };
   
   const handleSave = async (customer: Customer) => {
-    if (editingCustomer) {
-      await updateCustomer(customer);
-    } else {
-      await addCustomer(customer);
+    try {
+      if (editingCustomer) {
+        await updateCustomer(customer);
+        toast.success('Customer updated successfully');
+      } else {
+        await addCustomer(customer);
+        toast.success('Customer added successfully');
+      }
+      setShowAddForm(false);
+      setEditingCustomer(null);
+    } catch (error) {
+      console.error('Error saving customer:', error);
+      toast.error('Failed to save customer');
     }
+  };
+
+  const handleCancel = () => {
     setShowAddForm(false);
     setEditingCustomer(null);
   };
@@ -62,10 +80,7 @@ const Customers: React.FC = () => {
           <CustomerForm
             customer={editingCustomer || undefined}
             onSave={handleSave}
-            onCancel={() => {
-              setShowAddForm(false);
-              setEditingCustomer(null);
-            }}
+            onCancel={handleCancel}
           />
         </div>
       )}
