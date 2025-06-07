@@ -342,7 +342,7 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
   const addItemToBill = (item: BillItem) => {
     if (!currentBill) {
       console.error('No current bill to add item to');
-      toast.error('No active bill found');
+      toast.error('No active bill found. Please select a customer first.');
       return;
     }
     
@@ -382,7 +382,7 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
       taxRate: item.taxRate || 0
     };
     
-    const newItems = [...currentBill.items, completeItem];
+    const newItems = [...(currentBill.items || []), completeItem];
     const totals = calculateBillTotals(newItems, currentBill.billDiscountType, currentBill.billDiscountValue);
     
     const updatedBill = {
@@ -425,7 +425,7 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
       taxRate: item.taxRate || 0
     };
     
-    const newItems = [...currentBill.items];
+    const newItems = [...(currentBill.items || [])];
     newItems[index] = completeItem;
     
     const totals = calculateBillTotals(newItems, currentBill.billDiscountType, currentBill.billDiscountValue);
@@ -448,7 +448,7 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
     
     console.log('Removing bill item at index:', index);
     
-    const newItems = currentBill.items.filter((_, i) => i !== index);
+    const newItems = (currentBill.items || []).filter((_, i) => i !== index);
     const totals = calculateBillTotals(newItems, currentBill.billDiscountType, currentBill.billDiscountValue);
     
     const updatedBill = {
@@ -469,7 +469,7 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
     
     console.log('Updating bill discount:', { discountType, discountValue });
     
-    const totals = calculateBillTotals(currentBill.items, discountType, discountValue);
+    const totals = calculateBillTotals(currentBill.items || [], discountType, discountValue);
     
     const updatedBill = {
       ...currentBill,
