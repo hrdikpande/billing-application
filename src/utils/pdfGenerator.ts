@@ -180,11 +180,17 @@ export const generateA5BillPDF = (bill: Bill, businessInfo: User): jsPDF => {
     let itemTotal = 0;
     let totalDiscount = 0;
 
-    // Ensure we have items to display
-    if (bill.items && bill.items.length > 0) {
+    // Debug: Log bill items to console
+    console.log('Bill items:', bill.items);
+
+    // Ensure we have items to display and process them correctly
+    if (bill.items && Array.isArray(bill.items) && bill.items.length > 0) {
       bill.items.forEach((item, index) => {
         const rowHeight = 12;
         currentX = margin;
+
+        // Debug: Log each item
+        console.log(`Item ${index + 1}:`, item);
 
         // Draw row border
         doc.rect(margin, yPosition, contentWidth, rowHeight);
@@ -195,7 +201,7 @@ export const generateA5BillPDF = (bill: Bill, businessInfo: User): jsPDF => {
         doc.line(currentX, yPosition, currentX, yPosition + rowHeight);
 
         // Name (Product Name)
-        const productName = safeText(item.product.name);
+        const productName = safeText(item.product?.name || '');
         // Handle long product names by truncating if necessary
         const maxNameLength = 25;
         const displayName = productName.length > maxNameLength 
@@ -206,29 +212,38 @@ export const generateA5BillPDF = (bill: Bill, businessInfo: User): jsPDF => {
         doc.line(currentX, yPosition, currentX, yPosition + rowHeight);
 
         // Code (Product Code)
-        const productCode = safeText(item.product.code);
+        const productCode = safeText(item.product?.code || '');
         doc.text(productCode, currentX + 2, yPosition + 7);
         currentX += colWidths[2];
         doc.line(currentX, yPosition, currentX, yPosition + rowHeight);
 
         // Quantity
-        doc.text(safeNumber(item.quantity).toString(), currentX + 2, yPosition + 7);
+        const quantity = safeNumber(item.quantity);
+        doc.text(quantity.toString(), currentX + 2, yPosition + 7);
         currentX += colWidths[3];
         doc.line(currentX, yPosition, currentX, yPosition + rowHeight);
 
         // Price (Unit Price)
-        doc.text(formatCurrency(safeNumber(item.unitPrice)), currentX + 2, yPosition + 7);
+        const unitPrice = safeNumber(item.unitPrice || item.product?.unitPrice || item.product?.price);
+        doc.text(formatCurrency(unitPrice), currentX + 2, yPosition + 7);
         currentX += colWidths[4];
         doc.line(currentX, yPosition, currentX, yPosition + rowHeight);
 
         // Amount (Quantity * Price = Subtotal)
-        const amount = safeNumber(item.quantity) * safeNumber(item.unitPrice);
+        const amount = quantity * unitPrice;
         doc.text(formatCurrency(amount), currentX + 2, yPosition + 7);
         itemTotal += amount;
-        totalDiscount += safeNumber(item.discountAmount);
+        totalDiscount += safeNumber(item.discountAmount || 0);
 
         yPosition += rowHeight;
       });
+    } else {
+      // If no items, show a message in the first row
+      const rowHeight = 12;
+      doc.rect(margin, yPosition, contentWidth, rowHeight);
+      doc.setFont('helvetica', 'italic');
+      doc.text('No items found', margin + 2, yPosition + 7);
+      yPosition += rowHeight;
     }
 
     // Add empty rows if needed to maintain table structure
