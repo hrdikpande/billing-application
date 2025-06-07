@@ -129,9 +129,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
       createdAt: product?.createdAt || Date.now(),
       updatedAt: Date.now(),
       // Preserve existing serial number for updates, will be auto-assigned for new products
-      sno: product?.sno,
-      // Legacy support
-      price: formData.unitPrice
+      sno: product?.sno
     };
 
     onSave(savedProduct);
