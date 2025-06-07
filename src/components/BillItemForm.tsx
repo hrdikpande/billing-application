@@ -10,6 +10,7 @@ import {
   calculateItemTotal,
   formatCurrency,
 } from '../utils/calculations';
+import toast from 'react-hot-toast';
 
 interface BillItemFormProps {
   product: Product;
@@ -98,6 +99,13 @@ const BillItemForm: React.FC<BillItemFormProps> = ({
         : 'Discount must be a positive number';
     }
 
+    // Check stock availability if available
+    if (product.stockQuantity !== undefined && product.stockQuantity >= 0) {
+      if (quantity > product.stockQuantity) {
+        newErrors.quantity = `Only ${product.stockQuantity} items available in stock`;
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -109,9 +117,15 @@ const BillItemForm: React.FC<BillItemFormProps> = ({
       return;
     }
 
+    // Validate unit price
+    if (!unitPrice || unitPrice <= 0) {
+      toast.error('Product must have a valid price');
+      return;
+    }
+
     // Create complete bill item with all required fields
     const billItem: BillItem = {
-      id: existingItem?.id,
+      id: existingItem?.id || `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       product,
       productId: product.id,
       quantity,
@@ -170,10 +184,16 @@ const BillItemForm: React.FC<BillItemFormProps> = ({
           className={`input ${errors.quantity ? 'border-red-500' : ''}`}
           min="1"
           step="1"
+          max={product.stockQuantity || undefined}
           required
         />
         {errors.quantity && (
           <p className="text-red-500 text-xs mt-1">{errors.quantity}</p>
+        )}
+        {product.stockQuantity !== undefined && (
+          <p className="text-gray-500 text-xs mt-1">
+            Available: {product.stockQuantity} {product.unitOfMeasurement || 'pcs'}
+          </p>
         )}
       </div>
 

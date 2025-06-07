@@ -24,7 +24,8 @@ const NewBill: React.FC = () => {
     updateBillItem,
     removeBillItem,
     updateBillDiscount,
-    saveBill 
+    saveBill,
+    clearCurrentBill
   } = useEnhancedBilling();
   
   const [step, setStep] = useState<'select-customer' | 'create-bill'>('select-customer');
@@ -42,7 +43,14 @@ const NewBill: React.FC = () => {
     if (currentBill) {
       setStep('create-bill');
     }
-  }, [currentBill]);
+    
+    // Cleanup function to clear current bill when leaving
+    return () => {
+      if (currentBill && currentBill.items.length === 0) {
+        clearCurrentBill();
+      }
+    };
+  }, [currentBill, clearCurrentBill]);
   
   const handleSelectCustomer = (customer: Customer) => {
     console.log('Selected customer:', customer);
@@ -124,12 +132,16 @@ const NewBill: React.FC = () => {
       // Ensure all required fields are present
       const completeItem: BillItem = {
         ...item,
-        id: item.id || `item_${Date.now()}`,
+        id: item.id || `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         productId: item.product.id,
         subtotal: item.subtotal || (item.quantity * item.unitPrice),
         total: item.total || (item.subtotal - (item.discountAmount || 0)),
         discountAmount: item.discountAmount || 0,
-        taxAmount: item.taxAmount || 0
+        taxAmount: item.taxAmount || 0,
+        discountType: item.discountType || 'fixed',
+        discountValue: item.discountValue || 0,
+        discountPercentage: item.discountPercentage || 0,
+        taxRate: item.taxRate || 0
       };
       
       if (editingItemIndex !== null) {
@@ -193,7 +205,7 @@ const NewBill: React.FC = () => {
       
     } catch (error) {
       console.error('Error saving bill:', error);
-      toast.error('Failed to save bill');
+      toast.error(error instanceof Error ? error.message : 'Failed to save bill');
     } finally {
       setIsSaving(false);
     }
@@ -201,6 +213,7 @@ const NewBill: React.FC = () => {
   
   const handleCancel = () => {
     if (window.confirm('Are you sure you want to cancel this bill? All unsaved changes will be lost.')) {
+      clearCurrentBill();
       navigate('/');
     }
   };

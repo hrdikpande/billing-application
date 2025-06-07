@@ -293,6 +293,19 @@ class UserDataService {
         return { success: false, message: 'Bill must have at least one item' };
       }
       
+      // Validate each item
+      for (const item of billData.items) {
+        if (!item.product || !item.product.id) {
+          return { success: false, message: 'All items must have valid product data' };
+        }
+        if (!item.quantity || item.quantity <= 0) {
+          return { success: false, message: 'All items must have valid quantity' };
+        }
+        if (!item.unitPrice || item.unitPrice <= 0) {
+          return { success: false, message: 'All items must have valid unit price' };
+        }
+      }
+      
       const billId = uuidv4();
       const now = Date.now();
 

@@ -34,6 +34,7 @@ interface EnhancedBillingContextType {
   getBillById: (id: string) => Bill | undefined;
   deleteBill: (id: string) => Promise<void>;
   refreshBills: () => Promise<void>;
+  clearCurrentBill: () => void;
   
   // Data management
   isLoading: boolean;
@@ -324,7 +325,7 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
       id: uuidv4(),
       billNumber: generateBillNumber(),
       customer,
-      items: [],
+      items: [], // Initialize with empty array
       subtotal: 0,
       totalDiscount: 0,
       billDiscountType: 'fixed',
@@ -341,10 +342,30 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
   const addItemToBill = (item: BillItem) => {
     if (!currentBill) {
       console.error('No current bill to add item to');
+      toast.error('No active bill found');
       return;
     }
     
     console.log('Adding item to bill:', item);
+    
+    // Validate item data
+    if (!item.product || !item.product.id) {
+      console.error('Invalid item - missing product data:', item);
+      toast.error('Invalid product data');
+      return;
+    }
+    
+    if (!item.quantity || item.quantity <= 0) {
+      console.error('Invalid item - invalid quantity:', item);
+      toast.error('Invalid quantity');
+      return;
+    }
+    
+    if (!item.unitPrice || item.unitPrice <= 0) {
+      console.error('Invalid item - invalid unit price:', item);
+      toast.error('Invalid unit price');
+      return;
+    }
     
     // Ensure item has all required fields
     const completeItem: BillItem = {
@@ -354,7 +375,11 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
       subtotal: item.subtotal || (item.quantity * item.unitPrice),
       total: item.total || (item.subtotal - (item.discountAmount || 0)),
       discountAmount: item.discountAmount || 0,
-      taxAmount: item.taxAmount || 0
+      taxAmount: item.taxAmount || 0,
+      discountType: item.discountType || 'fixed',
+      discountValue: item.discountValue || 0,
+      discountPercentage: item.discountPercentage || 0,
+      taxRate: item.taxRate || 0
     };
     
     const newItems = [...currentBill.items, completeItem];
@@ -371,9 +396,19 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
   };
 
   const updateBillItem = (index: number, item: BillItem) => {
-    if (!currentBill) return;
+    if (!currentBill) {
+      console.error('No current bill to update item');
+      return;
+    }
     
     console.log('Updating bill item at index:', index, item);
+    
+    // Validate item data
+    if (!item.product || !item.product.id) {
+      console.error('Invalid item - missing product data:', item);
+      toast.error('Invalid product data');
+      return;
+    }
     
     // Ensure item has all required fields
     const completeItem: BillItem = {
@@ -383,7 +418,11 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
       subtotal: item.subtotal || (item.quantity * item.unitPrice),
       total: item.total || (item.subtotal - (item.discountAmount || 0)),
       discountAmount: item.discountAmount || 0,
-      taxAmount: item.taxAmount || 0
+      taxAmount: item.taxAmount || 0,
+      discountType: item.discountType || 'fixed',
+      discountValue: item.discountValue || 0,
+      discountPercentage: item.discountPercentage || 0,
+      taxRate: item.taxRate || 0
     };
     
     const newItems = [...currentBill.items];
@@ -402,7 +441,10 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
   };
 
   const removeBillItem = (index: number) => {
-    if (!currentBill) return;
+    if (!currentBill) {
+      console.error('No current bill to remove item from');
+      return;
+    }
     
     console.log('Removing bill item at index:', index);
     
@@ -420,7 +462,10 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
   };
 
   const updateBillDiscount = (discountType: 'fixed' | 'percentage', discountValue: number) => {
-    if (!currentBill) return;
+    if (!currentBill) {
+      console.error('No current bill to update discount');
+      return;
+    }
     
     console.log('Updating bill discount:', { discountType, discountValue });
     
@@ -470,7 +515,7 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
     
     if (!currentBill.items || currentBill.items.length === 0) {
       console.error('Cannot save bill without items');
-      throw new Error('Cannot save bill without items');
+      throw new Error('Cannot save bill without items. Please add at least one item.');
     }
     
     try {
@@ -478,12 +523,12 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
       
       // Validate all items before saving
       const invalidItems = currentBill.items.filter(item => 
-        !item.product || !item.product.id || !item.quantity || !item.unitPrice
+        !item.product || !item.product.id || !item.quantity || item.quantity <= 0 || !item.unitPrice || item.unitPrice <= 0
       );
       
       if (invalidItems.length > 0) {
         console.error('Invalid items found:', invalidItems);
-        throw new Error('Some items have invalid data');
+        throw new Error('Some items have invalid data. Please check all items.');
       }
       
       const billToSave = {
@@ -505,7 +550,7 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
         toast.success('Bill saved successfully');
       } else {
         console.error('Failed to save bill:', result.message);
-        throw new Error(result.message);
+        throw new Error(result.message || 'Failed to save bill');
       }
     } catch (error) {
       console.error('Error saving bill:', error);
@@ -545,6 +590,11 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
       console.error('Error refreshing bills:', error);
       toast.error('Failed to refresh bills');
     }
+  };
+
+  const clearCurrentBill = () => {
+    setCurrentBill(null);
+    console.log('Current bill cleared');
   };
 
   // Data management
@@ -616,6 +666,7 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
     getBillById,
     deleteBill,
     refreshBills,
+    clearCurrentBill,
     
     isLoading,
     dataStats,
