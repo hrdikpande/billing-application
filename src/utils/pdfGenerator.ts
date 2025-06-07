@@ -143,19 +143,18 @@ export const generateA5BillPDF = (bill: Bill, businessInfo: User): jsPDF => {
 
     yPosition += 23;
 
-    // Items Table Header
+    // Items Table Header - Updated column structure
     const tableHeaders = [
-      'Sl No.',
-      'Description of Goods and Services',
-      'HSN/SAC',
+      'S.No.',
+      'Name',
+      'Code',
       'Quantity',
-      'Rate',
-      'per',
+      'Price',
       'Amount'
     ];
 
-    // Calculate column widths
-    const colWidths = [15, 80, 20, 20, 20, 15, 25];
+    // Calculate column widths - adjusted for new structure
+    const colWidths = [15, 60, 25, 20, 25, 30];
     let currentX = margin;
 
     // Draw table header
@@ -167,7 +166,7 @@ export const generateA5BillPDF = (bill: Bill, businessInfo: User): jsPDF => {
     doc.setFont('helvetica', 'bold');
     
     tableHeaders.forEach((header, index) => {
-      doc.text(header, currentX + 1, yPosition + 5);
+      doc.text(header, currentX + 2, yPosition + 5);
       if (index < colWidths.length - 1) {
         doc.line(currentX + colWidths[index], yPosition, currentX + colWidths[index], yPosition + 8);
       }
@@ -176,61 +175,65 @@ export const generateA5BillPDF = (bill: Bill, businessInfo: User): jsPDF => {
 
     yPosition += 8;
 
-    // Items Table Body
+    // Items Table Body - Display actual products
     doc.setFont('helvetica', 'normal');
     let itemTotal = 0;
     let totalDiscount = 0;
 
-    bill.items.forEach((item, index) => {
-      const rowHeight = 12;
-      currentX = margin;
+    // Ensure we have items to display
+    if (bill.items && bill.items.length > 0) {
+      bill.items.forEach((item, index) => {
+        const rowHeight = 12;
+        currentX = margin;
 
-      // Draw row border
-      doc.rect(margin, yPosition, contentWidth, rowHeight);
+        // Draw row border
+        doc.rect(margin, yPosition, contentWidth, rowHeight);
 
-      // Serial number
-      doc.text((index + 1).toString(), currentX + 1, yPosition + 6);
-      currentX += colWidths[0];
-      doc.line(currentX, yPosition, currentX, yPosition + rowHeight);
+        // S.No.
+        doc.text((index + 1).toString(), currentX + 2, yPosition + 7);
+        currentX += colWidths[0];
+        doc.line(currentX, yPosition, currentX, yPosition + rowHeight);
 
-      // Description
-      const description = safeText(item.product.name);
-      doc.text(description, currentX + 1, yPosition + 6);
-      currentX += colWidths[1];
-      doc.line(currentX, yPosition, currentX, yPosition + rowHeight);
+        // Name (Product Name)
+        const productName = safeText(item.product.name);
+        // Handle long product names by truncating if necessary
+        const maxNameLength = 25;
+        const displayName = productName.length > maxNameLength 
+          ? productName.substring(0, maxNameLength) + '...' 
+          : productName;
+        doc.text(displayName, currentX + 2, yPosition + 7);
+        currentX += colWidths[1];
+        doc.line(currentX, yPosition, currentX, yPosition + rowHeight);
 
-      // HSN/SAC
-      doc.text('', currentX + 1, yPosition + 6);
-      currentX += colWidths[2];
-      doc.line(currentX, yPosition, currentX, yPosition + rowHeight);
+        // Code (Product Code)
+        const productCode = safeText(item.product.code);
+        doc.text(productCode, currentX + 2, yPosition + 7);
+        currentX += colWidths[2];
+        doc.line(currentX, yPosition, currentX, yPosition + rowHeight);
 
-      // Quantity
-      doc.text(safeNumber(item.quantity).toString(), currentX + 1, yPosition + 6);
-      currentX += colWidths[3];
-      doc.line(currentX, yPosition, currentX, yPosition + rowHeight);
+        // Quantity
+        doc.text(safeNumber(item.quantity).toString(), currentX + 2, yPosition + 7);
+        currentX += colWidths[3];
+        doc.line(currentX, yPosition, currentX, yPosition + rowHeight);
 
-      // Rate
-      doc.text(formatCurrency(safeNumber(item.unitPrice)), currentX + 1, yPosition + 6);
-      currentX += colWidths[4];
-      doc.line(currentX, yPosition, currentX, yPosition + rowHeight);
+        // Price (Unit Price)
+        doc.text(formatCurrency(safeNumber(item.unitPrice)), currentX + 2, yPosition + 7);
+        currentX += colWidths[4];
+        doc.line(currentX, yPosition, currentX, yPosition + rowHeight);
 
-      // Per
-      doc.text('Nos', currentX + 1, yPosition + 6);
-      currentX += colWidths[5];
-      doc.line(currentX, yPosition, currentX, yPosition + rowHeight);
+        // Amount (Quantity * Price = Subtotal)
+        const amount = safeNumber(item.quantity) * safeNumber(item.unitPrice);
+        doc.text(formatCurrency(amount), currentX + 2, yPosition + 7);
+        itemTotal += amount;
+        totalDiscount += safeNumber(item.discountAmount);
 
-      // Amount
-      const amount = safeNumber(item.total);
-      doc.text(formatCurrency(amount), currentX + 1, yPosition + 6);
-      itemTotal += amount;
-      totalDiscount += safeNumber(item.discountAmount);
+        yPosition += rowHeight;
+      });
+    }
 
-      yPosition += rowHeight;
-    });
-
-    // Add empty rows if needed
+    // Add empty rows if needed to maintain table structure
     const minRows = 8;
-    const currentRows = bill.items.length;
+    const currentRows = bill.items ? bill.items.length : 0;
     if (currentRows < minRows) {
       for (let i = currentRows; i < minRows; i++) {
         const rowHeight = 12;
@@ -255,7 +258,7 @@ export const generateA5BillPDF = (bill: Bill, businessInfo: User): jsPDF => {
       doc.rect(margin, yPosition, contentWidth, rowHeight);
       
       doc.setFont('helvetica', 'italic');
-      doc.text('Less: Discount', margin + colWidths[0] + 1, yPosition + 5);
+      doc.text('Less: Discount', margin + colWidths[0] + 2, yPosition + 5);
       
       const discountPercent = bill.billDiscountType === 'percentage' ? `(${bill.billDiscountValue}%)` : '';
       doc.text(discountPercent, pageWidth - margin - 50, yPosition + 5);
@@ -296,7 +299,7 @@ export const generateA5BillPDF = (bill: Bill, businessInfo: User): jsPDF => {
     let actualTaxAmount = 0;
 
     // Tax breakdown table
-    if (bill.items.length > 0) {
+    if (bill.items && bill.items.length > 0) {
       const taxTableY = yPosition;
       
       // Tax table headers
