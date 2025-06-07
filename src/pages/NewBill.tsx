@@ -39,9 +39,11 @@ const NewBill: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   
   useEffect(() => {
-    // Reset the current bill when component mounts
+    // Sync step state with currentBill state
     if (currentBill) {
       setStep('create-bill');
+    } else {
+      setStep('select-customer');
     }
     
     // Cleanup function to clear current bill when leaving
