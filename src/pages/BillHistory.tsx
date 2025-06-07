@@ -5,7 +5,6 @@ import { useEnhancedAuth } from '../context/EnhancedAuthContext';
 import { Search, FileText, Printer, Trash2, Eye, Download, Filter } from 'lucide-react';
 import { formatCurrency, formatDateTime } from '../utils/calculations';
 import { generateAndDownloadPDF } from '../utils/pdfGenerator';
-import toast from 'react-hot-toast';
 
 const BillHistory: React.FC = () => {
   const { bills, deleteBill } = useEnhancedBilling();
@@ -38,17 +37,14 @@ const BillHistory: React.FC = () => {
   const handleDownloadPDF = async (billId: string) => {
     const bill = bills.find(b => b.id === billId);
     if (!bill || !user) {
-      toast.error('Bill or user information not available');
       return;
     }
     
     try {
       setIsGeneratingPDF(billId);
       await generateAndDownloadPDF(bill, user, 'download');
-      toast.success('Bill downloaded successfully');
     } catch (error) {
       console.error('Error downloading PDF:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to download PDF');
     } finally {
       setIsGeneratingPDF(null);
     }
@@ -57,17 +53,14 @@ const BillHistory: React.FC = () => {
   const handlePrintPDF = async (billId: string) => {
     const bill = bills.find(b => b.id === billId);
     if (!bill || !user) {
-      toast.error('Bill or user information not available');
       return;
     }
     
     try {
       setIsGeneratingPDF(billId);
       await generateAndDownloadPDF(bill, user, 'print');
-      toast.success('Print dialog opened');
     } catch (error) {
       console.error('Error printing PDF:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to print PDF');
     } finally {
       setIsGeneratingPDF(null);
     }

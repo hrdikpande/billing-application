@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Bill, User } from '../types';
+import toast from 'react-hot-toast';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -501,7 +502,7 @@ export const downloadBillPDF = async (bill: Bill, businessInfo: User): Promise<v
   }
 };
 
-export const printBillPDF = async (bill: Bill, businessInfo: User): Promise<void> => {
+export const printBillPDF = async (bill: Bill, businessInfo: User): Promise<boolean> => {
   try {
     const doc = generateA5BillPDF(bill, businessInfo);
     
@@ -520,34 +521,44 @@ export const printBillPDF = async (bill: Bill, businessInfo: User): Promise<void
           }, 1000);
         }, 500);
       };
+      return true; // Print window opened successfully
     } else {
       URL.revokeObjectURL(blobUrl);
-      throw new Error('Print popup was blocked. PDF has been downloaded instead.');
+      return false; // Print window was blocked
     }
   } catch (error) {
     console.error('Error printing PDF:', error);
-    throw new Error('Failed to print PDF. Please try downloading instead.');
+    return false; // Print failed
   }
 };
 
 export const generateAndDownloadPDF = async (bill: Bill, businessInfo: User, action: 'download' | 'print' = 'download'): Promise<void> => {
   try {
     if (action === 'print') {
-      await printBillPDF(bill, businessInfo);
+      const printSuccess = await printBillPDF(bill, businessInfo);
+      if (printSuccess) {
+        toast.success('Print dialog opened');
+        return;
+      } else {
+        // Print failed, try download as fallback
+        try {
+          await downloadBillPDF(bill, businessInfo);
+          toast.success('Print failed, but PDF downloaded successfully');
+          return;
+        } catch (downloadError) {
+          toast.error('Both print and download failed. Please try again.');
+          throw new Error('Both print and download failed. Please try again.');
+        }
+      }
     } else {
       await downloadBillPDF(bill, businessInfo);
+      toast.success('Bill downloaded successfully');
     }
   } catch (error) {
     console.error(`Error ${action}ing PDF:`, error);
-    if (action === 'print') {
-      try {
-        await downloadBillPDF(bill, businessInfo);
-        throw new Error('Print failed. PDF has been downloaded instead.');
-      } catch (downloadError) {
-        throw new Error('Both print and download failed. Please try again.');
-      }
-    } else {
-      throw error;
+    if (action === 'download') {
+      toast.error(error instanceof Error ? error.message : 'Failed to download PDF');
     }
+    throw error;
   }
 };
