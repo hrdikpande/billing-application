@@ -292,6 +292,9 @@ export const generateA5BillPDF = (bill: Bill, businessInfo: User): jsPDF => {
     doc.text(amountInWords, margin, yPosition);
     yPosition += 8;
 
+    // Initialize actual tax amount
+    let actualTaxAmount = 0;
+
     // Tax breakdown table
     if (bill.items.length > 0) {
       const taxTableY = yPosition;
@@ -327,6 +330,9 @@ export const generateA5BillPDF = (bill: Bill, businessInfo: User): jsPDF => {
       const igstRate = 18; // Default GST rate
       const igstAmount = (taxableAmount * igstRate) / 100;
       
+      // Update actual tax amount
+      actualTaxAmount = igstAmount;
+      
       taxX = margin;
       const taxData = ['', formatCurrency(taxableAmount), `${igstRate}% ${formatCurrency(igstAmount)}`, formatCurrency(igstAmount)];
       
@@ -353,13 +359,15 @@ export const generateA5BillPDF = (bill: Bill, businessInfo: User): jsPDF => {
       yPosition = totalTaxY + taxRowHeight + 10;
     }
 
-    // Tax amount in words
+    // Tax amount in words - now dynamically calculated
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.text('Tax Amount (in words):', margin, yPosition);
     yPosition += 4;
     
-    const taxAmountInWords = 'INR Eighteen Thousand Only'; // Simplified
+    const taxAmountInWords = actualTaxAmount > 0 
+      ? `INR ${numberToWords(Math.floor(actualTaxAmount))} Only`
+      : 'INR Zero Only';
     doc.setFont('helvetica', 'bold');
     doc.text(taxAmountInWords, margin, yPosition);
     yPosition += 10;
