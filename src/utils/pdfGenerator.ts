@@ -9,9 +9,18 @@ declare module 'jspdf' {
   }
 }
 
-// Enhanced PDF generation matching the provided invoice format
+// Enhanced PDF generation with proper data handling
 export const generateA5BillPDF = (bill: Bill, businessInfo: User): jsPDF => {
   try {
+    // Validate input data
+    if (!bill || !businessInfo) {
+      throw new Error('Missing bill or business information');
+    }
+
+    if (!bill.items || !Array.isArray(bill.items) || bill.items.length === 0) {
+      throw new Error('No items found in the bill');
+    }
+
     // A4 dimensions for better readability: 210 × 297 mm
     const doc = new jsPDF({
       orientation: 'portrait',
@@ -47,24 +56,24 @@ export const generateA5BillPDF = (bill: Bill, businessInfo: User): jsPDF => {
     };
 
     // Header Section - Tax Invoice
-    doc.setFontSize(16);
+    doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 0);
     doc.text('Tax Invoice', pageWidth / 2, yPosition, { align: 'center' });
-    yPosition += 10;
+    yPosition += 12;
 
     // Invoice details box
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.5);
-    doc.rect(margin, yPosition, contentWidth, 25);
+    doc.rect(margin, yPosition, contentWidth, 30);
 
     // Left side - Business details
-    doc.setFontSize(10);
+    doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text(safeText(businessInfo.businessName).toUpperCase(), margin + 2, yPosition + 5);
+    doc.text(safeText(businessInfo.businessName).toUpperCase(), margin + 3, yPosition + 6);
     
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
+    doc.setFontSize(9);
     const businessAddress = [
       safeText(businessInfo.address),
       `${safeText(businessInfo.city)}, ${safeText(businessInfo.state)} - ${safeText(businessInfo.zipCode)}`,
@@ -74,52 +83,52 @@ export const generateA5BillPDF = (bill: Bill, businessInfo: User): jsPDF => {
       `E-Mail: ${safeText(businessInfo.email)}`
     ];
 
-    let addressY = yPosition + 8;
+    let addressY = yPosition + 10;
     businessAddress.forEach(line => {
       if (line.trim()) {
-        doc.text(line, margin + 2, addressY);
-        addressY += 3;
+        doc.text(line, margin + 3, addressY);
+        addressY += 3.5;
       }
     });
 
     // Right side - Invoice details
-    const rightX = pageWidth - 80;
-    doc.setFontSize(8);
+    const rightX = pageWidth - 85;
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     
     const invoiceDetails = [
-      ['Invoice No.', safeText(bill.billNumber)],
-      ['Dated', new Date(bill.createdAt).toLocaleDateString('en-GB')],
-      ['Delivery Note', ''],
-      ['Mode/Terms of Payment', bill.paymentMode || 'Cash'],
-      ['Reference No. & Date', ''],
-      ['Other References', ''],
-      ['Buyer\'s Order No.', ''],
-      ['Dated', ''],
-      ['Dispatch Doc No.', ''],
-      ['Delivery Note Date', '']
+      ['Invoice No.:', safeText(bill.billNumber)],
+      ['Dated:', new Date(bill.createdAt).toLocaleDateString('en-GB')],
+      ['Delivery Note:', ''],
+      ['Mode/Terms of Payment:', bill.paymentMode || 'Cash'],
+      ['Reference No. & Date:', ''],
+      ['Other References:', ''],
+      ['Buyer\'s Order No.:', ''],
+      ['Dated:', ''],
+      ['Dispatch Doc No.:', ''],
+      ['Delivery Note Date:', '']
     ];
 
-    let detailY = yPosition + 3;
+    let detailY = yPosition + 4;
     invoiceDetails.forEach(([label, value]) => {
-      doc.text(`${label}:`, rightX, detailY);
-      doc.text(value, rightX + 35, detailY);
-      detailY += 2.5;
+      doc.text(label, rightX, detailY);
+      doc.text(value, rightX + 40, detailY);
+      detailY += 2.8;
     });
 
-    yPosition += 28;
+    yPosition += 33;
 
     // Customer Information Section
-    doc.rect(margin, yPosition, contentWidth, 20);
+    doc.rect(margin, yPosition, contentWidth, 22);
     
-    doc.setFontSize(8);
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text('Consignee (Ship to)', margin + 2, yPosition + 4);
-    doc.text('Buyer (Bill to)', rightX, yPosition + 4);
+    doc.text('Consignee (Ship to)', margin + 3, yPosition + 5);
+    doc.text('Buyer (Bill to)', rightX, yPosition + 5);
 
     // Customer details
     doc.setFont('helvetica', 'bold');
-    doc.text(safeText(bill.customer.name).toUpperCase(), margin + 2, yPosition + 8);
+    doc.text(safeText(bill.customer.name).toUpperCase(), margin + 3, yPosition + 9);
     
     doc.setFont('helvetica', 'normal');
     const customerDetails = [
@@ -129,22 +138,22 @@ export const generateA5BillPDF = (bill: Bill, businessInfo: User): jsPDF => {
       bill.customer.gstin ? `GSTIN/UIN: ${safeText(bill.customer.gstin)}` : ''
     ];
 
-    let custY = yPosition + 11;
+    let custY = yPosition + 12;
     customerDetails.forEach(line => {
       if (line.trim()) {
-        doc.text(line, margin + 2, custY);
+        doc.text(line, margin + 3, custY);
         custY += 3;
       }
     });
 
     // Dispatch details on right
-    doc.text('Dispatched through', rightX, yPosition + 8);
-    doc.text('Destination', rightX, yPosition + 11);
-    doc.text('Terms of Delivery', rightX, yPosition + 14);
+    doc.text('Dispatched through', rightX, yPosition + 9);
+    doc.text('Destination', rightX, yPosition + 12);
+    doc.text('Terms of Delivery', rightX, yPosition + 15);
 
-    yPosition += 23;
+    yPosition += 25;
 
-    // Items Table Header - Updated column structure
+    // Items Table Header - Updated structure
     const tableHeaders = [
       'S.No.',
       'Name',
@@ -154,105 +163,118 @@ export const generateA5BillPDF = (bill: Bill, businessInfo: User): jsPDF => {
       'Amount'
     ];
 
-    // Calculate column widths - adjusted for new structure
-    const colWidths = [15, 60, 25, 20, 25, 30];
+    // Calculate column widths - optimized for content
+    const colWidths = [18, 65, 30, 22, 25, 30];
     let currentX = margin;
 
     // Draw table header
     doc.setFillColor(240, 240, 240);
-    doc.rect(margin, yPosition, contentWidth, 8, 'F');
-    doc.rect(margin, yPosition, contentWidth, 8);
+    doc.rect(margin, yPosition, contentWidth, 10, 'F');
+    doc.rect(margin, yPosition, contentWidth, 10);
 
-    doc.setFontSize(8);
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     
     tableHeaders.forEach((header, index) => {
-      doc.text(header, currentX + 2, yPosition + 5);
+      doc.text(header, currentX + 2, yPosition + 6);
       if (index < colWidths.length - 1) {
-        doc.line(currentX + colWidths[index], yPosition, currentX + colWidths[index], yPosition + 8);
+        doc.line(currentX + colWidths[index], yPosition, currentX + colWidths[index], yPosition + 10);
       }
       currentX += colWidths[index];
     });
 
-    yPosition += 8;
+    yPosition += 10;
 
-    // Items Table Body - Display actual products
+    // Items Table Body - Display actual products with proper data handling
     doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
     let itemTotal = 0;
     let totalDiscount = 0;
 
-    // Debug: Log bill items to console
-    console.log('Bill items:', bill.items);
+    console.log('Processing bill items:', bill.items);
 
-    // Ensure we have items to display and process them correctly
-    if (bill.items && Array.isArray(bill.items) && bill.items.length > 0) {
-      bill.items.forEach((item, index) => {
-        const rowHeight = 12;
+    // Process each item with proper error handling
+    bill.items.forEach((item, index) => {
+      try {
+        const rowHeight = 14;
         currentX = margin;
 
-        // Debug: Log each item
-        console.log(`Item ${index + 1}:`, item);
+        // Validate item data
+        if (!item || !item.product) {
+          console.warn(`Item ${index + 1} is missing product data:`, item);
+          return;
+        }
 
         // Draw row border
         doc.rect(margin, yPosition, contentWidth, rowHeight);
 
         // S.No.
-        doc.text((index + 1).toString(), currentX + 2, yPosition + 7);
+        doc.text((index + 1).toString(), currentX + 2, yPosition + 8);
         currentX += colWidths[0];
         doc.line(currentX, yPosition, currentX, yPosition + rowHeight);
 
-        // Name (Product Name)
-        const productName = safeText(item.product?.name || '');
-        // Handle long product names by truncating if necessary
-        const maxNameLength = 25;
+        // Name (Product Name) - handle long names
+        const productName = safeText(item.product.name || '');
+        const maxNameLength = 30;
         const displayName = productName.length > maxNameLength 
           ? productName.substring(0, maxNameLength) + '...' 
           : productName;
-        doc.text(displayName, currentX + 2, yPosition + 7);
+        doc.text(displayName, currentX + 2, yPosition + 8);
         currentX += colWidths[1];
         doc.line(currentX, yPosition, currentX, yPosition + rowHeight);
 
         // Code (Product Code)
-        const productCode = safeText(item.product?.code || '');
-        doc.text(productCode, currentX + 2, yPosition + 7);
+        const productCode = safeText(item.product.code || '');
+        doc.text(productCode, currentX + 2, yPosition + 8);
         currentX += colWidths[2];
         doc.line(currentX, yPosition, currentX, yPosition + rowHeight);
 
         // Quantity
         const quantity = safeNumber(item.quantity);
-        doc.text(quantity.toString(), currentX + 2, yPosition + 7);
+        doc.text(quantity.toString(), currentX + 2, yPosition + 8);
         currentX += colWidths[3];
         doc.line(currentX, yPosition, currentX, yPosition + rowHeight);
 
-        // Price (Unit Price)
-        const unitPrice = safeNumber(item.unitPrice || item.product?.unitPrice || item.product?.price);
-        doc.text(formatCurrency(unitPrice), currentX + 2, yPosition + 7);
+        // Price (Unit Price) - check multiple possible fields
+        const unitPrice = safeNumber(
+          item.unitPrice || 
+          item.product.unitPrice || 
+          item.product.price || 
+          0
+        );
+        doc.text(formatCurrency(unitPrice), currentX + 2, yPosition + 8);
         currentX += colWidths[4];
         doc.line(currentX, yPosition, currentX, yPosition + rowHeight);
 
-        // Amount (Quantity * Price = Subtotal)
-        const amount = quantity * unitPrice;
-        doc.text(formatCurrency(amount), currentX + 2, yPosition + 7);
-        itemTotal += amount;
+        // Amount (Total for this item)
+        const itemAmount = safeNumber(item.total || (quantity * unitPrice));
+        doc.text(formatCurrency(itemAmount), currentX + 2, yPosition + 8);
+        
+        // Add to totals
+        itemTotal += itemAmount;
         totalDiscount += safeNumber(item.discountAmount || 0);
 
         yPosition += rowHeight;
-      });
-    } else {
-      // If no items, show a message in the first row
-      const rowHeight = 12;
-      doc.rect(margin, yPosition, contentWidth, rowHeight);
-      doc.setFont('helvetica', 'italic');
-      doc.text('No items found', margin + 2, yPosition + 7);
-      yPosition += rowHeight;
-    }
+        
+        console.log(`Processed item ${index + 1}:`, {
+          name: productName,
+          code: productCode,
+          quantity,
+          unitPrice,
+          amount: itemAmount
+        });
+        
+      } catch (itemError) {
+        console.error(`Error processing item ${index + 1}:`, itemError, item);
+      }
+    });
 
     // Add empty rows if needed to maintain table structure
-    const minRows = 8;
-    const currentRows = bill.items ? bill.items.length : 0;
+    const minRows = 6;
+    const currentRows = bill.items.length;
     if (currentRows < minRows) {
       for (let i = currentRows; i < minRows; i++) {
-        const rowHeight = 12;
+        const rowHeight = 14;
         doc.rect(margin, yPosition, contentWidth, rowHeight);
         
         // Draw vertical lines
@@ -269,133 +291,129 @@ export const generateA5BillPDF = (bill: Bill, businessInfo: User): jsPDF => {
     }
 
     // Discount row if applicable
-    if (totalDiscount > 0 || (bill.billDiscountAmount && bill.billDiscountAmount > 0)) {
-      const rowHeight = 8;
+    const billDiscountAmount = safeNumber(bill.billDiscountAmount || 0);
+    if (totalDiscount > 0 || billDiscountAmount > 0) {
+      const rowHeight = 10;
       doc.rect(margin, yPosition, contentWidth, rowHeight);
       
       doc.setFont('helvetica', 'italic');
-      doc.text('Less: Discount', margin + colWidths[0] + 2, yPosition + 5);
+      doc.setFontSize(9);
+      doc.text('Less: Discount', margin + colWidths[0] + 2, yPosition + 6);
       
       const discountPercent = bill.billDiscountType === 'percentage' ? `(${bill.billDiscountValue}%)` : '';
-      doc.text(discountPercent, pageWidth - margin - 50, yPosition + 5);
+      doc.text(discountPercent, pageWidth - margin - 60, yPosition + 6);
       
-      const totalDiscountAmount = totalDiscount + (bill.billDiscountAmount || 0);
-      doc.text(`(${formatCurrency(totalDiscountAmount)})`, pageWidth - margin - 25, yPosition + 5, { align: 'right' });
+      const totalDiscountAmount = totalDiscount + billDiscountAmount;
+      doc.text(`(${formatCurrency(totalDiscountAmount)})`, pageWidth - margin - 5, yPosition + 6, { align: 'right' });
       
       yPosition += rowHeight;
     }
 
     // Total row
-    const totalRowHeight = 10;
+    const totalRowHeight = 12;
     doc.setFillColor(240, 240, 240);
     doc.rect(margin, yPosition, contentWidth, totalRowHeight, 'F');
     doc.rect(margin, yPosition, contentWidth, totalRowHeight);
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.text('Total', pageWidth - margin - 80, yPosition + 6);
-    doc.text(formatINR(safeNumber(bill.total)), pageWidth - margin - 5, yPosition + 6, { align: 'right' });
+    doc.setFontSize(11);
+    doc.text('Total', pageWidth - margin - 90, yPosition + 8);
+    
+    const finalTotal = safeNumber(bill.total);
+    doc.text(formatINR(finalTotal), pageWidth - margin - 5, yPosition + 8, { align: 'right' });
 
-    yPosition += totalRowHeight + 5;
+    yPosition += totalRowHeight + 8;
 
     // Amount in words
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
+    doc.setFontSize(9);
     doc.text('Amount Chargeable (in words):', margin, yPosition);
-    doc.text('E. & O.E', pageWidth - margin - 20, yPosition);
-    yPosition += 4;
+    doc.text('E. & O.E', pageWidth - margin - 25, yPosition);
+    yPosition += 5;
 
-    // Convert number to words (simplified)
-    const amountInWords = `INR ${numberToWords(Math.floor(safeNumber(bill.total)))} Only`;
+    // Convert number to words
+    const amountInWords = `INR ${numberToWords(Math.floor(finalTotal))} Only`;
     doc.setFont('helvetica', 'bold');
     doc.text(amountInWords, margin, yPosition);
-    yPosition += 8;
+    yPosition += 12;
 
-    // Initialize actual tax amount
-    let actualTaxAmount = 0;
-
-    // Tax breakdown table
-    if (bill.items && bill.items.length > 0) {
-      const taxTableY = yPosition;
-      
-      // Tax table headers
-      const taxHeaders = ['HSN/SAC', 'Taxable Value', 'IGST', 'Total Tax Amount'];
-      const taxColWidths = [30, 40, 40, 40];
-      
-      doc.setFillColor(240, 240, 240);
-      doc.rect(margin, taxTableY, 150, 8, 'F');
-      doc.rect(margin, taxTableY, 150, 8);
-      
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
-      
-      let taxX = margin;
-      taxHeaders.forEach((header, index) => {
-        doc.text(header, taxX + 1, taxTableY + 5);
-        if (index < taxHeaders.length - 1) {
-          doc.line(taxX + taxColWidths[index], taxTableY, taxX + taxColWidths[index], taxTableY + 8);
-        }
-        taxX += taxColWidths[index];
-      });
-
-      // Tax table body
-      const taxRowY = taxTableY + 8;
-      const taxRowHeight = 6;
-      
-      doc.rect(margin, taxRowY, 150, taxRowHeight);
-      doc.setFont('helvetica', 'normal');
-      
-      const taxableAmount = safeNumber(bill.subtotal) - safeNumber(bill.totalDiscount);
-      const igstRate = 18; // Default GST rate
-      const igstAmount = (taxableAmount * igstRate) / 100;
-      
-      // Update actual tax amount
-      actualTaxAmount = igstAmount;
-      
-      taxX = margin;
-      const taxData = ['', formatCurrency(taxableAmount), `${igstRate}% ${formatCurrency(igstAmount)}`, formatCurrency(igstAmount)];
-      
-      taxData.forEach((data, index) => {
-        doc.text(data, taxX + 1, taxRowY + 4);
-        if (index < taxData.length - 1) {
-          doc.line(taxX + taxColWidths[index], taxRowY, taxX + taxColWidths[index], taxRowY + taxRowHeight);
-        }
-        taxX += taxColWidths[index];
-      });
-
-      // Total tax row
-      const totalTaxY = taxRowY + taxRowHeight;
-      doc.setFillColor(240, 240, 240);
-      doc.rect(margin, totalTaxY, 150, taxRowHeight, 'F');
-      doc.rect(margin, totalTaxY, 150, taxRowHeight);
-      
-      doc.setFont('helvetica', 'bold');
-      doc.text('Total', margin + 1, totalTaxY + 4);
-      doc.text(formatCurrency(taxableAmount), margin + taxColWidths[0] + taxColWidths[1] - 20, totalTaxY + 4, { align: 'right' });
-      doc.text(formatCurrency(igstAmount), margin + taxColWidths[0] + taxColWidths[1] + taxColWidths[2] - 20, totalTaxY + 4, { align: 'right' });
-      doc.text(formatCurrency(igstAmount), margin + 150 - 5, totalTaxY + 4, { align: 'right' });
-
-      yPosition = totalTaxY + taxRowHeight + 10;
-    }
-
-    // Tax amount in words - now dynamically calculated
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.text('Tax Amount (in words):', margin, yPosition);
-    yPosition += 4;
+    // Tax breakdown table (simplified for now)
+    const taxTableY = yPosition;
     
-    const taxAmountInWords = actualTaxAmount > 0 
-      ? `INR ${numberToWords(Math.floor(actualTaxAmount))} Only`
+    // Tax table headers
+    const taxHeaders = ['HSN/SAC', 'Taxable Value', 'IGST Rate', 'IGST Amount', 'Total Tax Amount'];
+    const taxColWidths = [25, 35, 25, 30, 35];
+    
+    doc.setFillColor(240, 240, 240);
+    doc.rect(margin, taxTableY, 150, 8, 'F');
+    doc.rect(margin, taxTableY, 150, 8);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    
+    let taxX = margin;
+    taxHeaders.forEach((header, index) => {
+      doc.text(header, taxX + 1, taxTableY + 5);
+      if (index < taxHeaders.length - 1) {
+        doc.line(taxX + taxColWidths[index], taxTableY, taxX + taxColWidths[index], taxTableY + 8);
+      }
+      taxX += taxColWidths[index];
+    });
+
+    // Tax table body
+    const taxRowY = taxTableY + 8;
+    const taxRowHeight = 8;
+    
+    doc.rect(margin, taxRowY, 150, taxRowHeight);
+    doc.setFont('helvetica', 'normal');
+    
+    const taxableAmount = finalTotal;
+    const igstRate = 18; // Default GST rate
+    const igstAmount = (taxableAmount * igstRate) / (100 + igstRate); // Reverse calculation
+    
+    taxX = margin;
+    const taxData = ['', formatCurrency(taxableAmount - igstAmount), `${igstRate}%`, formatCurrency(igstAmount), formatCurrency(igstAmount)];
+    
+    taxData.forEach((data, index) => {
+      doc.text(data, taxX + 1, taxRowY + 5);
+      if (index < taxData.length - 1) {
+        doc.line(taxX + taxColWidths[index], taxRowY, taxX + taxColWidths[index], taxRowY + taxRowHeight);
+      }
+      taxX += taxColWidths[index];
+    });
+
+    // Total tax row
+    const totalTaxY = taxRowY + taxRowHeight;
+    doc.setFillColor(240, 240, 240);
+    doc.rect(margin, totalTaxY, 150, taxRowHeight, 'F');
+    doc.rect(margin, totalTaxY, 150, taxRowHeight);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.text('Total', margin + 1, totalTaxY + 5);
+    doc.text(formatCurrency(taxableAmount - igstAmount), margin + 60, totalTaxY + 5, { align: 'right' });
+    doc.text(formatCurrency(igstAmount), margin + 110, totalTaxY + 5, { align: 'right' });
+    doc.text(formatCurrency(igstAmount), margin + 150 - 5, totalTaxY + 5, { align: 'right' });
+
+    yPosition = totalTaxY + taxRowHeight + 12;
+
+    // Tax amount in words
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text('Tax Amount (in words):', margin, yPosition);
+    yPosition += 5;
+    
+    const taxAmountInWords = igstAmount > 0 
+      ? `INR ${numberToWords(Math.floor(igstAmount))} Only`
       : 'INR Zero Only';
     doc.setFont('helvetica', 'bold');
     doc.text(taxAmountInWords, margin, yPosition);
-    yPosition += 10;
+    yPosition += 12;
 
     // Company bank details
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
+    doc.setFontSize(9);
     doc.text('Company\'s Bank Details', margin, yPosition);
-    yPosition += 4;
+    yPosition += 5;
     
     const bankDetails = [
       `A/c Holder's Name: ${safeText(businessInfo.businessName)}`,
@@ -406,35 +424,36 @@ export const generateA5BillPDF = (bill: Bill, businessInfo: User): jsPDF => {
 
     bankDetails.forEach(detail => {
       doc.text(detail, margin, yPosition);
-      yPosition += 3;
+      yPosition += 4;
     });
 
     // Authorization signature
-    doc.text('for ' + safeText(businessInfo.businessName).toUpperCase(), pageWidth - margin - 60, yPosition - 10);
-    yPosition += 10;
-    doc.text('Authorised Signatory', pageWidth - margin - 60, yPosition);
+    doc.text('for ' + safeText(businessInfo.businessName).toUpperCase(), pageWidth - margin - 70, yPosition - 8);
+    yPosition += 12;
+    doc.text('Authorised Signatory', pageWidth - margin - 70, yPosition);
 
     // Footer
-    yPosition = pageHeight - 20;
+    yPosition = pageHeight - 25;
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(8);
     doc.text('This is a Computer Generated Invoice', pageWidth / 2, yPosition, { align: 'center' });
 
+    console.log('PDF generation completed successfully');
     return doc;
+    
   } catch (error) {
     console.error('Error generating PDF:', error);
-    throw new Error('Failed to generate PDF. Please try again.');
+    throw new Error(`Failed to generate PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
 
-// Helper function to convert numbers to words (simplified version)
+// Helper function to convert numbers to words (enhanced version)
 function numberToWords(num: number): string {
   if (num === 0) return 'Zero';
   
   const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
   const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
   const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-  const thousands = ['', 'Thousand', 'Lakh', 'Crore'];
 
   function convertHundreds(n: number): string {
     let result = '';
@@ -464,7 +483,6 @@ function numberToWords(num: number): string {
   }
 
   let result = '';
-  let place = 0;
   
   // Handle Indian numbering system
   if (num >= 10000000) { // Crore
@@ -491,19 +509,24 @@ function numberToWords(num: number): string {
 
 export const downloadBillPDF = async (bill: Bill, businessInfo: User): Promise<void> => {
   try {
+    console.log('Starting PDF download for bill:', bill.billNumber);
+    console.log('Bill items:', bill.items);
+    
     const doc = generateA5BillPDF(bill, businessInfo);
     const fileName = `Invoice_${bill.billNumber || 'bill'}_${new Date().toISOString().split('T')[0]}.pdf`;
     
     doc.save(fileName);
-    console.log(`PDF downloaded: ${fileName}`);
+    console.log(`PDF downloaded successfully: ${fileName}`);
   } catch (error) {
     console.error('Error downloading PDF:', error);
-    throw new Error('Failed to download PDF. Please check your browser settings and try again.');
+    throw new Error(`Failed to download PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
 
 export const printBillPDF = async (bill: Bill, businessInfo: User): Promise<boolean> => {
   try {
+    console.log('Starting PDF print for bill:', bill.billNumber);
+    
     const doc = generateA5BillPDF(bill, businessInfo);
     
     const pdfBlob = doc.output('blob');
@@ -534,6 +557,26 @@ export const printBillPDF = async (bill: Bill, businessInfo: User): Promise<bool
 
 export const generateAndDownloadPDF = async (bill: Bill, businessInfo: User, action: 'download' | 'print' = 'download'): Promise<void> => {
   try {
+    // Validate inputs
+    if (!bill) {
+      toast.error('Bill information is missing');
+      throw new Error('Bill information is missing');
+    }
+    
+    if (!businessInfo) {
+      toast.error('Business information is missing');
+      throw new Error('Business information is missing');
+    }
+    
+    if (!bill.items || !Array.isArray(bill.items) || bill.items.length === 0) {
+      toast.error('No items found in the bill');
+      throw new Error('No items found in the bill');
+    }
+    
+    console.log(`Starting ${action} for bill:`, bill.billNumber);
+    console.log('Bill data:', bill);
+    console.log('Business data:', businessInfo);
+    
     if (action === 'print') {
       const printSuccess = await printBillPDF(bill, businessInfo);
       if (printSuccess) {

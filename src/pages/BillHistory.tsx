@@ -37,8 +37,19 @@ const BillHistory: React.FC = () => {
   const handleDownloadPDF = async (billId: string) => {
     const bill = bills.find(b => b.id === billId);
     if (!bill || !user) {
+      console.error('Bill or user information not available', { bill: !!bill, user: !!user });
       return;
     }
+    
+    // Validate bill data before processing
+    if (!bill.items || !Array.isArray(bill.items) || bill.items.length === 0) {
+      console.error('Bill has no items:', bill);
+      return;
+    }
+    
+    console.log('Downloading PDF for bill:', bill.billNumber);
+    console.log('Bill items:', bill.items);
+    console.log('User info:', user);
     
     try {
       setIsGeneratingPDF(billId);
@@ -53,8 +64,18 @@ const BillHistory: React.FC = () => {
   const handlePrintPDF = async (billId: string) => {
     const bill = bills.find(b => b.id === billId);
     if (!bill || !user) {
+      console.error('Bill or user information not available', { bill: !!bill, user: !!user });
       return;
     }
+    
+    // Validate bill data before processing
+    if (!bill.items || !Array.isArray(bill.items) || bill.items.length === 0) {
+      console.error('Bill has no items:', bill);
+      return;
+    }
+    
+    console.log('Printing PDF for bill:', bill.billNumber);
+    console.log('Bill items:', bill.items);
     
     try {
       setIsGeneratingPDF(billId);
@@ -164,7 +185,7 @@ const BillHistory: React.FC = () => {
                       </div>
                     </td>
                     <td className="text-sm text-gray-500">
-                      {bill.items.length} {bill.items.length === 1 ? 'item' : 'items'}
+                      {bill.items?.length || 0} {(bill.items?.length || 0) === 1 ? 'item' : 'items'}
                     </td>
                     <td>
                       {getStatusBadge(bill.paymentStatus)}
@@ -181,30 +202,41 @@ const BillHistory: React.FC = () => {
                         >
                           <Eye size={18} />
                         </Link>
-                        <button
-                          onClick={() => handlePrintPDF(bill.id)}
-                          disabled={isGeneratingPDF === bill.id}
-                          className="text-green-600 hover:text-green-800 transition-colors disabled:opacity-50"
-                          title="Print Bill"
-                        >
-                          {isGeneratingPDF === bill.id ? (
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
-                          ) : (
-                            <Printer size={18} />
-                          )}
-                        </button>
-                        <button
-                          onClick={() => handleDownloadPDF(bill.id)}
-                          disabled={isGeneratingPDF === bill.id}
-                          className="text-indigo-600 hover:text-indigo-800 transition-colors disabled:opacity-50"
-                          title="Download PDF"
-                        >
-                          {isGeneratingPDF === bill.id ? (
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
-                          ) : (
-                            <Download size={18} />
-                          )}
-                        </button>
+                        
+                        {/* Only show print/download if bill has items */}
+                        {bill.items && bill.items.length > 0 ? (
+                          <>
+                            <button
+                              onClick={() => handlePrintPDF(bill.id)}
+                              disabled={isGeneratingPDF === bill.id}
+                              className="text-green-600 hover:text-green-800 transition-colors disabled:opacity-50"
+                              title="Print Bill"
+                            >
+                              {isGeneratingPDF === bill.id ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
+                              ) : (
+                                <Printer size={18} />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleDownloadPDF(bill.id)}
+                              disabled={isGeneratingPDF === bill.id}
+                              className="text-indigo-600 hover:text-indigo-800 transition-colors disabled:opacity-50"
+                              title="Download PDF"
+                            >
+                              {isGeneratingPDF === bill.id ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+                              ) : (
+                                <Download size={18} />
+                              )}
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-xs text-gray-400" title="No items in bill">
+                            No PDF
+                          </span>
+                        )}
+                        
                         <button
                           onClick={() => handleDelete(bill.id)}
                           className="text-red-600 hover:text-red-800 transition-colors"
@@ -260,7 +292,7 @@ const BillHistory: React.FC = () => {
           <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
             <div className="text-sm font-medium text-purple-600">Items Sold</div>
             <div className="text-2xl font-bold text-purple-900">
-              {bills.reduce((sum, bill) => sum + bill.items.reduce((s, item) => s + item.quantity, 0), 0)}
+              {bills.reduce((sum, bill) => sum + (bill.items?.reduce((s, item) => s + item.quantity, 0) || 0), 0)}
             </div>
           </div>
         </div>
