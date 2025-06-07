@@ -42,10 +42,10 @@ class UserDataService {
     const userId = this.getCurrentUserId();
     
     try {
-      // Check if product code already exists for this user
+      // Check if product code already exists for this user (regardless of active status)
       const existing = await multiTenantDb.executeQuery(
         userId,
-        'SELECT id FROM products WHERE code = ? AND is_active = 1',
+        'SELECT id FROM products WHERE code = ?',
         [productData.code]
       );
       
