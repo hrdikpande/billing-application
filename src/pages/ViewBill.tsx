@@ -1,0 +1,282 @@
+import React, { useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useEnhancedBilling } from '../context/EnhancedBillingContext';
+import { useEnhancedAuth } from '../context/EnhancedAuthContext';
+import { ArrowLeft, Printer, FileText, Trash2, Download } from 'lucide-react';
+import BillItemsTable from '../components/BillItemsTable';
+import { formatCurrency, formatDateTime } from '../utils/calculations';
+import { generateAndDownloadPDF } from '../utils/pdfGenerator';
+import toast from 'react-hot-toast';
+
+const ViewBill: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { getBillById, deleteBill } = useEnhancedBilling();
+  const { user } = useEnhancedAuth();
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  
+  const bill = id ? getBillById(id) : undefined;
+  
+  if (!bill) {
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Bill Not Found</h2>
+        <p className="text-gray-500 mb-6">
+          The bill you're looking for doesn't exist or has been deleted.
+        </p>
+        <Link to="/bill-history" className="btn btn-primary">
+          Back to Bill History
+        </Link>
+      </div>
+    );
+  }
+  
+  const handleDelete = async () => {
+    if (window.confirm('Are you sure you want to delete this bill?')) {
+      try {
+        await deleteBill(bill.id);
+        navigate('/bill-history');
+      } catch (error) {
+        console.error('Error deleting bill:', error);
+      }
+    }
+  };
+  
+  const handleDownloadPDF = async () => {
+    if (!user) {
+      toast.error('User information not available');
+      return;
+    }
+    
+    try {
+      setIsGeneratingPDF(true);
+      await generateAndDownloadPDF(bill, user, 'download');
+      toast.success('Bill downloaded successfully');
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to download PDF');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+  
+  const handlePrintPDF = async () => {
+    if (!user) {
+      toast.error('User information not available');
+      return;
+    }
+    
+    try {
+      setIsGeneratingPDF(true);
+      await generateAndDownloadPDF(bill, user, 'print');
+      toast.success('Print dialog opened');
+    } catch (error) {
+      console.error('Error printing PDF:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to print PDF');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+        <div className="flex items-center space-x-3">
+          <Link
+            to="/bill-history"
+            className="text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            <ArrowLeft size={20} />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">View Bill</h1>
+            <p className="text-sm text-gray-500">Bill details from your secure database</p>
+          </div>
+        </div>
+        
+        <div className="flex space-x-3">
+          <button
+            onClick={handlePrintPDF}
+            disabled={isGeneratingPDF}
+            className="btn btn-outline flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Printer size={18} />
+            <span>{isGeneratingPDF ? 'Generating...' : 'Print'}</span>
+          </button>
+          
+          <button
+            onClick={handleDownloadPDF}
+            disabled={isGeneratingPDF}
+            className="btn btn-primary flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isGeneratingPDF ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            ) : (
+              <Download size={18} />
+            )}
+            <span>{isGeneratingPDF ? 'Generating...' : 'Download PDF'}</span>
+          </button>
+          
+          <button
+            onClick={handleDelete}
+            className="btn btn-danger flex items-center space-x-2"
+          >
+            <Trash2 size={18} />
+            <span>Delete</span>
+          </button>
+        </div>
+      </div>
+      
+      <div className="card p-6">
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start space-y-6 lg:space-y-0">
+          {/* Bill Details */}
+          <div>
+            <div className="flex items-center space-x-2">
+              <h2 className="text-xl font-bold text-gray-900">
+                Bill #{bill.billNumber}
+              </h2>
+              <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                Completed
+              </span>
+            </div>
+            <p className="text-gray-500 mt-1">
+              Created on {formatDateTime(bill.createdAt)}
+            </p>
+          </div>
+          
+          {/* Customer Info */}
+          <div className="bg-gray-50 p-4 rounded-lg border">
+            <h3 className="text-sm font-medium text-gray-700 mb-2">Customer Information:</h3>
+            <div>
+              <p className="font-medium text-gray-900">{bill.customer.name}</p>
+              <p className="text-sm text-gray-500">{bill.customer.phone}</p>
+              {bill.customer.email && (
+                <p className="text-sm text-gray-500">{bill.customer.email}</p>
+              )}
+              {bill.customer.address && (
+                <p className="text-sm text-gray-500 mt-1">{bill.customer.address}</p>
+              )}
+              {bill.customer.gstin && (
+                <p className="text-sm text-gray-500">GSTIN: {bill.customer.gstin}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Bill Items */}
+      <div className="card">
+        <div className="p-4 sm:p-6 border-b border-gray-200">
+          <h2 className="text-lg font-medium text-gray-900">Items ({bill.items.length})</h2>
+        </div>
+        
+        <div className="p-4 sm:p-6">
+          <BillItemsTable items={bill.items} readOnly />
+        </div>
+        
+        {/* Bill Summary */}
+        <div className="p-4 sm:p-6 border-t border-gray-200 bg-gray-50">
+          <div className="flex justify-end">
+            <div className="w-full sm:w-80">
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Subtotal:</span>
+                  <span className="font-medium text-gray-900">
+                    {formatCurrency(bill.subtotal)}
+                  </span>
+                </div>
+                
+                {bill.totalDiscount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Total Discount:</span>
+                    <span className="font-medium text-orange-600">
+                      -{formatCurrency(bill.totalDiscount)}
+                    </span>
+                  </div>
+                )}
+                
+                {bill.totalTax && bill.totalTax > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Tax:</span>
+                    <span className="font-medium text-gray-900">
+                      {formatCurrency(bill.totalTax)}
+                    </span>
+                  </div>
+                )}
+                
+                <div className="pt-3 border-t border-gray-200 flex justify-between">
+                  <span className="text-lg font-semibold text-gray-900">Total:</span>
+                  <span className="text-lg font-bold text-blue-600">
+                    {formatCurrency(bill.total)}
+                  </span>
+                </div>
+                
+                {/* Payment Information */}
+                {(bill.paymentMode || bill.paymentStatus) && (
+                  <div className="pt-3 border-t border-gray-200 space-y-2">
+                    {bill.paymentMode && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Payment Mode:</span>
+                        <span className="font-medium text-gray-900 capitalize">
+                          {bill.paymentMode}
+                        </span>
+                      </div>
+                    )}
+                    {bill.paymentStatus && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Payment Status:</span>
+                        <span className={`font-medium capitalize ${
+                          bill.paymentStatus === 'paid' ? 'text-green-600' : 
+                          bill.paymentStatus === 'pending' ? 'text-yellow-600' : 'text-red-600'
+                        }`}>
+                          {bill.paymentStatus}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Note */}
+      {(bill.notes || bill.note) && (
+        <div className="card p-4 sm:p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-3">Notes</h3>
+          <div className="bg-gray-50 p-4 rounded-lg border">
+            <p className="text-gray-700 whitespace-pre-wrap">{bill.notes || bill.note}</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Quick Actions */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <button
+          onClick={handleDownloadPDF}
+          disabled={isGeneratingPDF}
+          className="flex-1 btn btn-primary flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isGeneratingPDF ? (
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+          ) : (
+            <Download size={18} />
+          )}
+          <span>{isGeneratingPDF ? 'Generating PDF...' : 'Download PDF'}</span>
+        </button>
+        
+        <button
+          onClick={handlePrintPDF}
+          disabled={isGeneratingPDF}
+          className="flex-1 btn btn-outline flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Printer size={18} />
+          <span>{isGeneratingPDF ? 'Generating...' : 'Print Bill'}</span>
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default ViewBill;
