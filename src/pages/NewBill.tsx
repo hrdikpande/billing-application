@@ -18,6 +18,7 @@ const NewBill: React.FC = () => {
     customers, 
     products,
     addCustomer,
+    deleteCustomer,
     currentBill, 
     initNewBill, 
     addItemToBill, 
@@ -48,7 +49,7 @@ const NewBill: React.FC = () => {
     
     // Cleanup function to clear current bill when leaving
     return () => {
-      if (currentBill && currentBill.items.length === 0) {
+      if (currentBill && (!currentBill.items || currentBill.items.length === 0)) {
         clearCurrentBill();
       }
     };
@@ -58,6 +59,7 @@ const NewBill: React.FC = () => {
     console.log('Selected customer:', customer);
     initNewBill(customer);
     setStep('create-bill');
+    setShowAddCustomer(false);
   };
   
   const handleAddCustomer = () => {
@@ -73,6 +75,16 @@ const NewBill: React.FC = () => {
     } catch (error) {
       console.error('Error adding customer:', error);
       toast.error('Failed to add customer');
+    }
+  };
+
+  const handleDeleteCustomer = async (id: string) => {
+    try {
+      await deleteCustomer(id);
+      toast.success('Customer deleted successfully');
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      toast.error('Failed to delete customer');
     }
   };
   
@@ -111,7 +123,7 @@ const NewBill: React.FC = () => {
   };
   
   const handleEditItem = (index: number) => {
-    if (!currentBill) return;
+    if (!currentBill || !currentBill.items) return;
     
     console.log('Editing item at index:', index);
     setEditingItemIndex(index);
@@ -239,7 +251,7 @@ const NewBill: React.FC = () => {
   };
 
   const getItemDiscountsTotal = (): number => {
-    if (!currentBill) return 0;
+    if (!currentBill || !currentBill.items) return 0;
     return currentBill.items.reduce((sum, item) => sum + (item.discountAmount || 0), 0);
   };
   
@@ -293,8 +305,8 @@ const NewBill: React.FC = () => {
             ) : (
               <CustomersList
                 customers={customers}
-                onEdit={() => {}}
-                onDelete={() => {}}
+                onEdit={() => {}} // Disable edit in bill creation
+                onDelete={handleDeleteCustomer}
                 onSelect={handleSelectCustomer}
                 selectable
               />
@@ -319,11 +331,14 @@ const NewBill: React.FC = () => {
           </div>
           
           <div className="bg-blue-50 p-4 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-700">Customer:</h3>
+            <h3 className="text-sm font-medium text-gray-700 mb-2">Customer:</h3>
             {currentBill && (
               <div className="mt-1">
                 <p className="font-medium text-gray-900">{currentBill.customer.name}</p>
                 <p className="text-sm text-gray-500">{currentBill.customer.phone}</p>
+                {currentBill.customer.email && (
+                  <p className="text-sm text-gray-500">{currentBill.customer.email}</p>
+                )}
               </div>
             )}
           </div>
@@ -334,7 +349,7 @@ const NewBill: React.FC = () => {
       <div className="card">
         <div className="p-4 sm:p-6 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
           <h2 className="text-lg font-medium text-gray-900">
-            Bill Items ({currentBill?.items?.length || 0})
+            Items ({currentBill?.items?.length || 0})
           </h2>
           
           <div className="flex space-x-3">
@@ -357,7 +372,7 @@ const NewBill: React.FC = () => {
                 <h3 className="text-lg font-medium text-gray-900">Select Product</h3>
                 <button
                   onClick={() => setShowProductSelection(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 text-xl font-bold"
                 >
                   ×
                 </button>
@@ -395,7 +410,7 @@ const NewBill: React.FC = () => {
               <BillItemForm
                 product={selectedProduct}
                 existingItem={
-                  editingItemIndex !== null && currentBill
+                  editingItemIndex !== null && currentBill && currentBill.items
                     ? currentBill.items[editingItemIndex]
                     : undefined
                 }
