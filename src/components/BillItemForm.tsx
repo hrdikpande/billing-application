@@ -112,8 +112,12 @@ const BillItemForm: React.FC<BillItemFormProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent event bubbling
+
+    console.log('BillItemForm: handleSubmit called');
 
     if (!validateForm()) {
+      console.log('BillItemForm: Validation failed');
       return;
     }
 
@@ -140,8 +144,22 @@ const BillItemForm: React.FC<BillItemFormProps> = ({
       total,
     };
 
-    console.log('Submitting bill item:', billItem);
-    onSave(billItem);
+    console.log('BillItemForm: Submitting bill item:', billItem);
+    
+    try {
+      onSave(billItem);
+      console.log('BillItemForm: onSave called successfully');
+    } catch (error) {
+      console.error('BillItemForm: Error in onSave:', error);
+      toast.error('Failed to save item');
+    }
+  };
+
+  const handleCancel = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation(); // Prevent event bubbling
+    console.log('BillItemForm: handleCancel called');
+    onCancel();
   };
 
   return (
@@ -269,12 +287,15 @@ const BillItemForm: React.FC<BillItemFormProps> = ({
       <div className="flex justify-end space-x-3 pt-4">
         <button
           type="button"
-          onClick={onCancel}
+          onClick={handleCancel}
           className="btn btn-outline"
         >
           Cancel
         </button>
-        <button type="submit" className="btn btn-primary">
+        <button 
+          type="submit" 
+          className="btn btn-primary"
+        >
           {existingItem ? 'Update Item' : 'Add to Bill'}
         </button>
       </div>

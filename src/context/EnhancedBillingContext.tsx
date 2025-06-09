@@ -320,7 +320,7 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
 
   // Bill operations
   const initNewBill = (customer: Customer) => {
-    console.log('Initializing new bill for customer:', customer);
+    console.log('EnhancedBillingContext: Initializing new bill for customer:', customer);
     const newBill: Bill = {
       id: uuidv4(),
       billNumber: generateBillNumber(),
@@ -336,33 +336,33 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
     };
     
     setCurrentBill(newBill);
-    console.log('New bill initialized:', newBill);
+    console.log('EnhancedBillingContext: New bill initialized:', newBill);
   };
 
   const addItemToBill = (item: BillItem) => {
+    console.log('EnhancedBillingContext: addItemToBill called with:', item);
+    
     if (!currentBill) {
-      console.error('No current bill to add item to');
+      console.error('EnhancedBillingContext: No current bill to add item to');
       toast.error('No active bill found. Please select a customer first.');
       return;
     }
     
-    console.log('Adding item to bill:', item);
-    
     // Validate item data
     if (!item.product || !item.product.id) {
-      console.error('Invalid item - missing product data:', item);
+      console.error('EnhancedBillingContext: Invalid item - missing product data:', item);
       toast.error('Invalid product data');
       return;
     }
     
     if (!item.quantity || item.quantity <= 0) {
-      console.error('Invalid item - invalid quantity:', item);
+      console.error('EnhancedBillingContext: Invalid item - invalid quantity:', item);
       toast.error('Invalid quantity');
       return;
     }
     
     if (!item.unitPrice || item.unitPrice <= 0) {
-      console.error('Invalid item - invalid unit price:', item);
+      console.error('EnhancedBillingContext: Invalid item - invalid unit price:', item);
       toast.error('Invalid unit price');
       return;
     }
@@ -391,8 +391,11 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
       ...totals
     };
     
+    console.log('EnhancedBillingContext: Updating current bill with new item:', updatedBill);
     setCurrentBill(updatedBill);
-    console.log('Bill updated with new item:', updatedBill);
+    
+    // Don't show toast here - let the calling component handle it
+    console.log('EnhancedBillingContext: Item added successfully, bill updated');
   };
 
   const updateBillItem = (index: number, item: BillItem) => {
@@ -593,8 +596,8 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
   };
 
   const clearCurrentBill = () => {
+    console.log('EnhancedBillingContext: Clearing current bill');
     setCurrentBill(null);
-    console.log('Current bill cleared');
   };
 
   // Data management
