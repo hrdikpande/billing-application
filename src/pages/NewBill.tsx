@@ -43,16 +43,21 @@ const NewBill: React.FC = () => {
   const currentStep = currentBill ? 'create-bill' : 'select-customer';
   
   useEffect(() => {
+    console.log('NewBill: Component mounted/updated');
+    console.log('NewBill: Current bill state:', currentBill);
+    console.log('NewBill: Current step:', currentStep);
+    
     // Cleanup function to clear current bill when leaving (only if no items)
     return () => {
       if (currentBill && (!currentBill.items || currentBill.items.length === 0)) {
+        console.log('NewBill: Cleaning up empty bill on unmount');
         clearCurrentBill();
       }
     };
   }, [currentBill, clearCurrentBill]);
   
   const handleSelectCustomer = (customer: Customer) => {
-    console.log('Selected customer:', customer);
+    console.log('NewBill: Selected customer:', customer);
     initNewBill(customer);
     setShowAddCustomer(false);
     toast.success(`Customer ${customer.name} selected`);
@@ -85,16 +90,16 @@ const NewBill: React.FC = () => {
   };
   
   const handleSelectProduct = (product: Product) => {
-    console.log('Selected product:', product);
+    console.log('NewBill: Selected product:', product);
     setSelectedProduct(product);
     setShowProductSelection(false);
     setShowAddItem(true);
   };
   
   const handleAddItem = () => {
-    console.log('Add item clicked');
-    console.log('Current bill exists:', !!currentBill);
-    console.log('Products available:', products.length);
+    console.log('NewBill: Add item clicked');
+    console.log('NewBill: Current bill exists:', !!currentBill);
+    console.log('NewBill: Products available:', products.length);
     
     if (!currentBill) {
       toast.error('Please select a customer first');
@@ -114,13 +119,13 @@ const NewBill: React.FC = () => {
     
     // Show product selection
     setShowProductSelection(true);
-    console.log('Product selection shown');
+    console.log('NewBill: Product selection shown');
   };
   
   const handleEditItem = (index: number) => {
     if (!currentBill || !currentBill.items) return;
     
-    console.log('Editing item at index:', index);
+    console.log('NewBill: Editing item at index:', index);
     setEditingItemIndex(index);
     setSelectedProduct(currentBill.items[index].product);
     setShowProductSelection(false);
@@ -135,9 +140,9 @@ const NewBill: React.FC = () => {
   };
   
   const handleSaveItem = (item: BillItem) => {
+    console.log('NewBill: handleSaveItem called with:', item);
+    
     try {
-      console.log('Saving item:', item);
-      
       // Validate item data
       if (!item.product || !item.product.id) {
         toast.error('Invalid product data');
@@ -169,6 +174,8 @@ const NewBill: React.FC = () => {
         taxRate: item.taxRate || 0
       };
       
+      console.log('NewBill: Saving complete item:', completeItem);
+      
       if (editingItemIndex !== null) {
         updateBillItem(editingItemIndex, completeItem);
         toast.success('Item updated successfully');
@@ -183,16 +190,16 @@ const NewBill: React.FC = () => {
       setSelectedProduct(null);
       setEditingItemIndex(null);
       
-      console.log('Item saved successfully, staying on bill page');
+      console.log('NewBill: Item saved successfully, staying on bill page');
       
     } catch (error) {
-      console.error('Error saving item:', error);
+      console.error('NewBill: Error saving item:', error);
       toast.error('Failed to save item');
     }
   };
 
   const handleCancelItemForm = () => {
-    console.log('Canceling item form');
+    console.log('NewBill: Canceling item form');
     setShowAddItem(false);
     setShowProductSelection(false);
     setSelectedProduct(null);
@@ -226,14 +233,14 @@ const NewBill: React.FC = () => {
     
     try {
       setIsSaving(true);
-      console.log('Saving bill with items:', currentBill.items);
+      console.log('NewBill: Saving bill with items:', currentBill.items);
       
       await saveBill(billNote.trim() || undefined);
       toast.success('Bill saved successfully');
       navigate('/bill-history');
       
     } catch (error) {
-      console.error('Error saving bill:', error);
+      console.error('NewBill: Error saving bill:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to save bill');
     } finally {
       setIsSaving(false);
@@ -327,7 +334,7 @@ const NewBill: React.FC = () => {
             )}
           </div>
           
-          <div className="bg-blue-50 p-4 rounded-lg">
+          <div className="bg-blue-50 p-4 rounded-lg border">
             <h3 className="text-sm font-medium text-gray-700 mb-2">Customer:</h3>
             {currentBill && (
               <div className="mt-1">
