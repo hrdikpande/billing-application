@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useEnhancedBilling } from '../context/EnhancedBillingContext';
 import { useEnhancedAuth } from '../context/EnhancedAuthContext';
-import { ArrowLeft, Printer, FileText, Trash2, Download } from 'lucide-react';
+import { ArrowLeft, Printer, FileText, Trash2, Download, FileDown } from 'lucide-react';
 import BillItemsTable from '../components/BillItemsTable';
 import { formatCurrency, formatDateTime } from '../utils/calculations';
 import { generateAndDownloadPDF } from '../utils/pdfGenerator';
@@ -13,6 +13,7 @@ const ViewBill: React.FC = () => {
   const { getBillById, deleteBill } = useEnhancedBilling();
   const { user } = useEnhancedAuth();
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [showSizeOptions, setShowSizeOptions] = useState(false);
   
   const bill = id ? getBillById(id) : undefined;
   
@@ -41,7 +42,7 @@ const ViewBill: React.FC = () => {
     }
   };
   
-  const handleDownloadPDF = async () => {
+  const handleDownloadPDF = async (size: 'A4' | 'A5' = 'A5') => {
     if (!user) {
       console.error('User information not available');
       return;
@@ -53,12 +54,13 @@ const ViewBill: React.FC = () => {
       return;
     }
     
-    console.log('Downloading PDF for bill:', bill.billNumber);
+    console.log(`Downloading ${size} PDF for bill:`, bill.billNumber);
     console.log('Bill items:', bill.items);
     
     try {
       setIsGeneratingPDF(true);
-      await generateAndDownloadPDF(bill, user, 'download');
+      await generateAndDownloadPDF(bill, user, 'download', size);
+      setShowSizeOptions(false);
     } catch (error) {
       console.error('Error downloading PDF:', error);
     } finally {
@@ -66,7 +68,7 @@ const ViewBill: React.FC = () => {
     }
   };
   
-  const handlePrintPDF = async () => {
+  const handlePrintPDF = async (size: 'A4' | 'A5' = 'A5') => {
     if (!user) {
       console.error('User information not available');
       return;
@@ -78,12 +80,13 @@ const ViewBill: React.FC = () => {
       return;
     }
     
-    console.log('Printing PDF for bill:', bill.billNumber);
+    console.log(`Printing ${size} PDF for bill:`, bill.billNumber);
     console.log('Bill items:', bill.items);
     
     try {
       setIsGeneratingPDF(true);
-      await generateAndDownloadPDF(bill, user, 'print');
+      await generateAndDownloadPDF(bill, user, 'print', size);
+      setShowSizeOptions(false);
     } catch (error) {
       console.error('Error printing PDF:', error);
     } finally {
@@ -113,27 +116,81 @@ const ViewBill: React.FC = () => {
         <div className="flex space-x-3">
           {canGeneratePDF ? (
             <>
-              <button
-                onClick={handlePrintPDF}
-                disabled={isGeneratingPDF}
-                className="btn btn-outline flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Printer size={18} />
-                <span>{isGeneratingPDF ? 'Generating...' : 'Print'}</span>
-              </button>
-              
-              <button
-                onClick={handleDownloadPDF}
-                disabled={isGeneratingPDF}
-                className="btn btn-primary flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isGeneratingPDF ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                ) : (
-                  <Download size={18} />
+              {/* Print Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowSizeOptions(!showSizeOptions)}
+                  disabled={isGeneratingPDF}
+                  className="btn btn-outline flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Printer size={18} />
+                  <span>{isGeneratingPDF ? 'Generating...' : 'Print'}</span>
+                  <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                
+                {showSizeOptions && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
+                    <button
+                      onClick={() => handlePrintPDF('A5')}
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                      disabled={isGeneratingPDF}
+                    >
+                      <FileText size={16} className="mr-2" />
+                      Print A5 (Compact)
+                    </button>
+                    <button
+                      onClick={() => handlePrintPDF('A4')}
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                      disabled={isGeneratingPDF}
+                    >
+                      <FileDown size={16} className="mr-2" />
+                      Print A4 (Detailed)
+                    </button>
+                  </div>
                 )}
-                <span>{isGeneratingPDF ? 'Generating...' : 'Download PDF'}</span>
-              </button>
+              </div>
+              
+              {/* Download Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowSizeOptions(!showSizeOptions)}
+                  disabled={isGeneratingPDF}
+                  className="btn btn-primary flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isGeneratingPDF ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  ) : (
+                    <Download size={18} />
+                  )}
+                  <span>{isGeneratingPDF ? 'Generating...' : 'Download'}</span>
+                  <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                
+                {showSizeOptions && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
+                    <button
+                      onClick={() => handleDownloadPDF('A5')}
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                      disabled={isGeneratingPDF}
+                    >
+                      <FileText size={16} className="mr-2" />
+                      Download A5 PDF (Compact)
+                    </button>
+                    <button
+                      onClick={() => handleDownloadPDF('A4')}
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                      disabled={isGeneratingPDF}
+                    >
+                      <FileDown size={16} className="mr-2" />
+                      Download A4 PDF (Detailed)
+                    </button>
+                  </div>
+                )}
+              </div>
             </>
           ) : (
             <div className="text-sm text-gray-500 bg-gray-100 px-3 py-2 rounded-md">
@@ -289,29 +346,37 @@ const ViewBill: React.FC = () => {
       
       {/* Quick Actions */}
       {canGeneratePDF && (
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <button
-            onClick={handleDownloadPDF}
+            onClick={() => handleDownloadPDF('A5')}
             disabled={isGeneratingPDF}
-            className="flex-1 btn btn-primary flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn btn-primary flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isGeneratingPDF ? (
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
             ) : (
-              <Download size={18} />
+              <FileText size={18} />
             )}
-            <span>{isGeneratingPDF ? 'Generating PDF...' : 'Download PDF'}</span>
+            <span>{isGeneratingPDF ? 'Generating...' : 'Download A5 PDF (Compact)'}</span>
           </button>
           
           <button
-            onClick={handlePrintPDF}
+            onClick={() => handleDownloadPDF('A4')}
             disabled={isGeneratingPDF}
-            className="flex-1 btn btn-outline flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn btn-outline flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Printer size={18} />
-            <span>{isGeneratingPDF ? 'Generating...' : 'Print Bill'}</span>
+            <FileDown size={18} />
+            <span>{isGeneratingPDF ? 'Generating...' : 'Download A4 PDF (Detailed)'}</span>
           </button>
         </div>
+      )}
+      
+      {/* Click outside to close dropdown */}
+      {showSizeOptions && (
+        <div 
+          className="fixed inset-0 z-40" 
+          onClick={() => setShowSizeOptions(false)}
+        ></div>
       )}
     </div>
   );

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useEnhancedBilling } from '../context/EnhancedBillingContext';
 import { useEnhancedAuth } from '../context/EnhancedAuthContext';
-import { Search, FileText, Printer, Trash2, Eye, Download, Filter } from 'lucide-react';
+import { Search, FileText, Printer, Trash2, Eye, Download, Filter, FileDown } from 'lucide-react';
 import { formatCurrency, formatDateTime } from '../utils/calculations';
 import { generateAndDownloadPDF } from '../utils/pdfGenerator';
 
@@ -12,6 +12,7 @@ const BillHistory: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isGeneratingPDF, setIsGeneratingPDF] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<'all' | 'paid' | 'pending' | 'overdue'>('all');
+  const [showSizeOptions, setShowSizeOptions] = useState<string | null>(null);
   
   const filteredBills = bills.filter((bill) => {
     const matchesSearch = 
@@ -34,7 +35,7 @@ const BillHistory: React.FC = () => {
     }
   };
   
-  const handleDownloadPDF = async (billId: string) => {
+  const handleDownloadPDF = async (billId: string, size: 'A4' | 'A5' = 'A5') => {
     const bill = bills.find(b => b.id === billId);
     if (!bill || !user) {
       console.error('Bill or user information not available', { bill: !!bill, user: !!user });
@@ -47,13 +48,14 @@ const BillHistory: React.FC = () => {
       return;
     }
     
-    console.log('Downloading PDF for bill:', bill.billNumber);
+    console.log(`Downloading ${size} PDF for bill:`, bill.billNumber);
     console.log('Bill items:', bill.items);
     console.log('User info:', user);
     
     try {
       setIsGeneratingPDF(billId);
-      await generateAndDownloadPDF(bill, user, 'download');
+      await generateAndDownloadPDF(bill, user, 'download', size);
+      setShowSizeOptions(null);
     } catch (error) {
       console.error('Error downloading PDF:', error);
     } finally {
@@ -61,7 +63,7 @@ const BillHistory: React.FC = () => {
     }
   };
   
-  const handlePrintPDF = async (billId: string) => {
+  const handlePrintPDF = async (billId: string, size: 'A4' | 'A5' = 'A5') => {
     const bill = bills.find(b => b.id === billId);
     if (!bill || !user) {
       console.error('Bill or user information not available', { bill: !!bill, user: !!user });
@@ -74,12 +76,13 @@ const BillHistory: React.FC = () => {
       return;
     }
     
-    console.log('Printing PDF for bill:', bill.billNumber);
+    console.log(`Printing ${size} PDF for bill:`, bill.billNumber);
     console.log('Bill items:', bill.items);
     
     try {
       setIsGeneratingPDF(billId);
-      await generateAndDownloadPDF(bill, user, 'print');
+      await generateAndDownloadPDF(bill, user, 'print', size);
+      setShowSizeOptions(null);
     } catch (error) {
       console.error('Error printing PDF:', error);
     } finally {
@@ -206,30 +209,79 @@ const BillHistory: React.FC = () => {
                         {/* Only show print/download if bill has items */}
                         {bill.items && bill.items.length > 0 ? (
                           <>
-                            <button
-                              onClick={() => handlePrintPDF(bill.id)}
-                              disabled={isGeneratingPDF === bill.id}
-                              className="text-green-600 hover:text-green-800 transition-colors disabled:opacity-50"
-                              title="Print Bill"
-                            >
-                              {isGeneratingPDF === bill.id ? (
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
-                              ) : (
-                                <Printer size={18} />
+                            {/* Print Dropdown */}
+                            <div className="relative">
+                              <button
+                                onClick={() => setShowSizeOptions(showSizeOptions === `print-${bill.id}` ? null : `print-${bill.id}`)}
+                                disabled={isGeneratingPDF === bill.id}
+                                className="text-green-600 hover:text-green-800 transition-colors disabled:opacity-50"
+                                title="Print Bill"
+                              >
+                                {isGeneratingPDF === bill.id ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
+                                ) : (
+                                  <Printer size={18} />
+                                )}
+                              </button>
+                              
+                              {showSizeOptions === `print-${bill.id}` && (
+                                <div className="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
+                                  <button
+                                    onClick={() => handlePrintPDF(bill.id, 'A5')}
+                                    className="flex items-center w-full px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
+                                    disabled={isGeneratingPDF === bill.id}
+                                  >
+                                    <FileText size={14} className="mr-2" />
+                                    Print A5
+                                  </button>
+                                  <button
+                                    onClick={() => handlePrintPDF(bill.id, 'A4')}
+                                    className="flex items-center w-full px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
+                                    disabled={isGeneratingPDF === bill.id}
+                                  >
+                                    <FileDown size={14} className="mr-2" />
+                                    Print A4
+                                  </button>
+                                </div>
                               )}
-                            </button>
-                            <button
-                              onClick={() => handleDownloadPDF(bill.id)}
-                              disabled={isGeneratingPDF === bill.id}
-                              className="text-indigo-600 hover:text-indigo-800 transition-colors disabled:opacity-50"
-                              title="Download PDF"
-                            >
-                              {isGeneratingPDF === bill.id ? (
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
-                              ) : (
-                                <Download size={18} />
+                            </div>
+                            
+                            {/* Download Dropdown */}
+                            <div className="relative">
+                              <button
+                                onClick={() => setShowSizeOptions(showSizeOptions === `download-${bill.id}` ? null : `download-${bill.id}`)}
+                                disabled={isGeneratingPDF === bill.id}
+                                className="text-indigo-600 hover:text-indigo-800 transition-colors disabled:opacity-50"
+                                title="Download PDF"
+                              >
+                                {isGeneratingPDF === bill.id ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+                                ) : (
+                                  <Download size={18} />
+                                )}
+                              </button>
+                              
+                              {showSizeOptions === `download-${bill.id}` && (
+                                <div className="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
+                                  <button
+                                    onClick={() => handleDownloadPDF(bill.id, 'A5')}
+                                    className="flex items-center w-full px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
+                                    disabled={isGeneratingPDF === bill.id}
+                                  >
+                                    <FileText size={14} className="mr-2" />
+                                    A5 PDF
+                                  </button>
+                                  <button
+                                    onClick={() => handleDownloadPDF(bill.id, 'A4')}
+                                    className="flex items-center w-full px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
+                                    disabled={isGeneratingPDF === bill.id}
+                                  >
+                                    <FileDown size={14} className="mr-2" />
+                                    A4 PDF
+                                  </button>
+                                </div>
                               )}
-                            </button>
+                            </div>
                           </>
                         ) : (
                           <span className="text-xs text-gray-400" title="No items in bill">
@@ -296,6 +348,14 @@ const BillHistory: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+      
+      {/* Click outside to close dropdowns */}
+      {showSizeOptions && (
+        <div 
+          className="fixed inset-0 z-40" 
+          onClick={() => setShowSizeOptions(null)}
+        ></div>
       )}
     </div>
   );
