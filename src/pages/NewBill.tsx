@@ -41,7 +41,7 @@ const NewBill: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   
   // Force re-render when currentBill changes
-  const [, forceUpdate] = useState({});
+  const [renderKey, setRenderKey] = useState(0);
   
   // Determine current view based on currentBill state and URL params
   const getCurrentView = () => {
@@ -81,8 +81,14 @@ const NewBill: React.FC = () => {
     }
     
     // Force re-render to ensure UI consistency
-    forceUpdate({});
+    setRenderKey(prev => prev + 1);
   }, [currentBill, location, currentView]);
+  
+  // Force re-render when currentBill items change
+  useEffect(() => {
+    console.log('NewBill: currentBill.items changed:', currentBill?.items?.length || 0);
+    setRenderKey(prev => prev + 1);
+  }, [currentBill?.items]);
   
   // Cleanup on unmount
   useEffect(() => {
@@ -108,7 +114,7 @@ const NewBill: React.FC = () => {
       toast.success(`Customer ${customer.name} selected. You can now add items to the bill.`);
       
       // Force re-render
-      forceUpdate({});
+      setRenderKey(prev => prev + 1);
       
     } catch (error) {
       console.error('NewBill: Error selecting customer:', error);
@@ -189,10 +195,15 @@ const NewBill: React.FC = () => {
     if (window.confirm('Are you sure you want to remove this item?')) {
       removeBillItem(index);
       toast.success('Item removed from bill');
+      
+      // Force re-render
+      setTimeout(() => {
+        setRenderKey(prev => prev + 1);
+      }, 100);
     }
   };
   
-  const handleSaveItem = (item: BillItem) => {
+  const handleSaveItem = async (item: BillItem) => {
     console.log('NewBill: handleSaveItem called');
     console.log('NewBill: Item data:', item);
     console.log('NewBill: Current bill before save:', currentBill);
@@ -249,7 +260,7 @@ const NewBill: React.FC = () => {
       
       // Force re-render to show updated bill
       setTimeout(() => {
-        forceUpdate({});
+        setRenderKey(prev => prev + 1);
       }, 100);
       
     } catch (error) {
@@ -268,6 +279,11 @@ const NewBill: React.FC = () => {
 
   const handleBillDiscountChange = (discountType: 'fixed' | 'percentage', discountValue: number) => {
     updateBillDiscount(discountType, discountValue);
+    
+    // Force re-render
+    setTimeout(() => {
+      setRenderKey(prev => prev + 1);
+    }, 100);
   };
   
   const handleFinalizeBill = async () => {
@@ -326,7 +342,7 @@ const NewBill: React.FC = () => {
   // Customer Selection View
   if (currentView === 'select-customer') {
     return (
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-6 animate-fade-in" key={`customer-select-${renderKey}`}>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Select Customer</h1>
@@ -388,7 +404,7 @@ const NewBill: React.FC = () => {
   // Bill Creation View
   if (currentView === 'create-bill' && currentBill) {
     return (
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-6 animate-fade-in" key={`bill-create-${renderKey}`}>
         {/* Bill Header */}
         <div className="bg-white shadow rounded-lg p-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
@@ -501,11 +517,13 @@ const NewBill: React.FC = () => {
             
             {/* Bill Items Table */}
             {currentBill.items && currentBill.items.length > 0 ? (
-              <BillItemsTable
-                items={currentBill.items}
-                onEdit={handleEditItem}
-                onDelete={handleDeleteItem}
-              />
+              <div key={`items-table-${currentBill.items.length}-${renderKey}`}>
+                <BillItemsTable
+                  items={currentBill.items}
+                  onEdit={handleEditItem}
+                  onDelete={handleDeleteItem}
+                />
+              </div>
             ) : (
               <div className="text-center py-8 bg-gray-50 rounded-md">
                 <p className="text-gray-500 mb-4">No items added to this bill yet.</p>

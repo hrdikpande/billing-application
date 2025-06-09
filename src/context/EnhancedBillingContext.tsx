@@ -66,6 +66,10 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
     totalRevenue: 0
   });
 
+  // Force re-render trigger
+  const [updateTrigger, setUpdateTrigger] = useState(0);
+  const forceUpdate = () => setUpdateTrigger(prev => prev + 1);
+
   // Load user data when authenticated
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -79,6 +83,15 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
       setDataStats({ products: 0, customers: 0, bills: 0, totalRevenue: 0 });
     }
   }, [isAuthenticated, user]);
+
+  // Debug effect to log currentBill changes
+  useEffect(() => {
+    console.log('EnhancedBillingContext: currentBill changed:', currentBill);
+    console.log('EnhancedBillingContext: currentBill items count:', currentBill?.items?.length || 0);
+    if (currentBill?.items) {
+      console.log('EnhancedBillingContext: currentBill items:', currentBill.items);
+    }
+  }, [currentBill, updateTrigger]);
 
   const loadUserData = async () => {
     if (!isAuthenticated || !user) return;
@@ -320,7 +333,7 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
 
   // Bill operations
   const initNewBill = (customer: Customer) => {
-    console.log('EnhancedBillingContext: Initializing new bill for customer:', customer);
+    console.log('EnhancedBillingContext: Initializing new bill for customer:', customer.name);
     const newBill: Bill = {
       id: uuidv4(),
       billNumber: generateBillNumber(),
@@ -336,6 +349,7 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
     };
     
     setCurrentBill(newBill);
+    forceUpdate(); // Force re-render
     console.log('EnhancedBillingContext: New bill initialized:', newBill);
   };
 
@@ -382,16 +396,7 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
       taxRate: item.taxRate || 0
     };
     
-    const newItems = [...(currentBill.items || []), completeItem];
-    const totals = calculateBillTotals(newItems, currentBill.billDiscountType, currentBill.billDiscountValue);
-    
-    const updatedBill = {
-      ...currentBill,
-      items: newItems,
-      ...totals
-    };
-    
-    console.log('EnhancedBillingContext: Updating current bill with new item:', updatedBill);
+    console.log('EnhancedBillingContext: Complete item to add:', completeItem);
     
     // Use functional update to ensure state consistency
     setCurrentBill(prevBill => {
@@ -410,8 +415,14 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
       };
       
       console.log('EnhancedBillingContext: Bill state updated successfully:', updatedBill);
+      console.log('EnhancedBillingContext: New items array:', newItems);
       return updatedBill;
     });
+    
+    // Force re-render after state update
+    setTimeout(() => {
+      forceUpdate();
+    }, 50);
     
     console.log('EnhancedBillingContext: Item added successfully, bill updated');
   };
@@ -462,6 +473,11 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
       };
     });
     
+    // Force re-render
+    setTimeout(() => {
+      forceUpdate();
+    }, 50);
+    
     console.log('Bill updated with modified item');
   };
 
@@ -487,6 +503,11 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
       };
     });
     
+    // Force re-render
+    setTimeout(() => {
+      forceUpdate();
+    }, 50);
+    
     console.log('Bill updated after item removal');
   };
 
@@ -511,6 +532,11 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
         ...totals
       };
     });
+    
+    // Force re-render
+    setTimeout(() => {
+      forceUpdate();
+    }, 50);
     
     console.log('Bill updated with discount');
   };
@@ -628,6 +654,7 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
   const clearCurrentBill = () => {
     console.log('EnhancedBillingContext: Clearing current bill');
     setCurrentBill(null);
+    forceUpdate(); // Force re-render
   };
 
   // Data management
