@@ -105,6 +105,19 @@ const BillHistory: React.FC = () => {
     }
   };
 
+  // Helper function to get items count with proper validation
+  const getItemsCount = (bill: any): number => {
+    if (!bill || !bill.items) return 0;
+    if (!Array.isArray(bill.items)) return 0;
+    return bill.items.length;
+  };
+
+  // Helper function to get items display text
+  const getItemsDisplayText = (bill: any): string => {
+    const count = getItemsCount(bill);
+    return `${count} ${count === 1 ? 'item' : 'items'}`;
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
@@ -188,7 +201,16 @@ const BillHistory: React.FC = () => {
                       </div>
                     </td>
                     <td className="text-sm text-gray-500">
-                      {bill.items?.length || 0} {(bill.items?.length || 0) === 1 ? 'item' : 'items'}
+                      <div className="flex flex-col">
+                        <span className="font-medium text-gray-900">
+                          {getItemsDisplayText(bill)}
+                        </span>
+                        {getItemsCount(bill) > 0 && (
+                          <span className="text-xs text-gray-500">
+                            Total: {formatCurrency(bill.total)}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td>
                       {getStatusBadge(bill.paymentStatus)}
@@ -207,7 +229,7 @@ const BillHistory: React.FC = () => {
                         </Link>
                         
                         {/* Only show print/download if bill has items */}
-                        {bill.items && bill.items.length > 0 ? (
+                        {getItemsCount(bill) > 0 ? (
                           <>
                             {/* Print Dropdown */}
                             <div className="relative">
@@ -344,7 +366,11 @@ const BillHistory: React.FC = () => {
           <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
             <div className="text-sm font-medium text-purple-600">Items Sold</div>
             <div className="text-2xl font-bold text-purple-900">
-              {bills.reduce((sum, bill) => sum + (bill.items?.reduce((s, item) => s + item.quantity, 0) || 0), 0)}
+              {bills.reduce((sum, bill) => {
+                const itemCount = getItemsCount(bill);
+                const totalQuantity = bill.items?.reduce((s: number, item: any) => s + (item.quantity || 0), 0) || 0;
+                return sum + totalQuantity;
+              }, 0)}
             </div>
           </div>
         </div>
