@@ -392,9 +392,27 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
     };
     
     console.log('EnhancedBillingContext: Updating current bill with new item:', updatedBill);
-    setCurrentBill(updatedBill);
     
-    // Don't show toast here - let the calling component handle it
+    // Use functional update to ensure state consistency
+    setCurrentBill(prevBill => {
+      if (!prevBill) {
+        console.error('EnhancedBillingContext: Previous bill is null during update');
+        return prevBill;
+      }
+      
+      const newItems = [...(prevBill.items || []), completeItem];
+      const totals = calculateBillTotals(newItems, prevBill.billDiscountType, prevBill.billDiscountValue);
+      
+      const updatedBill = {
+        ...prevBill,
+        items: newItems,
+        ...totals
+      };
+      
+      console.log('EnhancedBillingContext: Bill state updated successfully:', updatedBill);
+      return updatedBill;
+    });
+    
     console.log('EnhancedBillingContext: Item added successfully, bill updated');
   };
 
@@ -428,19 +446,23 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
       taxRate: item.taxRate || 0
     };
     
-    const newItems = [...(currentBill.items || [])];
-    newItems[index] = completeItem;
+    // Use functional update to ensure state consistency
+    setCurrentBill(prevBill => {
+      if (!prevBill) return prevBill;
+      
+      const newItems = [...(prevBill.items || [])];
+      newItems[index] = completeItem;
+      
+      const totals = calculateBillTotals(newItems, prevBill.billDiscountType, prevBill.billDiscountValue);
+      
+      return {
+        ...prevBill,
+        items: newItems,
+        ...totals
+      };
+    });
     
-    const totals = calculateBillTotals(newItems, currentBill.billDiscountType, currentBill.billDiscountValue);
-    
-    const updatedBill = {
-      ...currentBill,
-      items: newItems,
-      ...totals
-    };
-    
-    setCurrentBill(updatedBill);
-    console.log('Bill updated with modified item:', updatedBill);
+    console.log('Bill updated with modified item');
   };
 
   const removeBillItem = (index: number) => {
@@ -451,17 +473,21 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
     
     console.log('Removing bill item at index:', index);
     
-    const newItems = (currentBill.items || []).filter((_, i) => i !== index);
-    const totals = calculateBillTotals(newItems, currentBill.billDiscountType, currentBill.billDiscountValue);
+    // Use functional update to ensure state consistency
+    setCurrentBill(prevBill => {
+      if (!prevBill) return prevBill;
+      
+      const newItems = (prevBill.items || []).filter((_, i) => i !== index);
+      const totals = calculateBillTotals(newItems, prevBill.billDiscountType, prevBill.billDiscountValue);
+      
+      return {
+        ...prevBill,
+        items: newItems,
+        ...totals
+      };
+    });
     
-    const updatedBill = {
-      ...currentBill,
-      items: newItems,
-      ...totals
-    };
-    
-    setCurrentBill(updatedBill);
-    console.log('Bill updated after item removal:', updatedBill);
+    console.log('Bill updated after item removal');
   };
 
   const updateBillDiscount = (discountType: 'fixed' | 'percentage', discountValue: number) => {
@@ -472,17 +498,21 @@ export const EnhancedBillingProvider: React.FC<{ children: React.ReactNode }> = 
     
     console.log('Updating bill discount:', { discountType, discountValue });
     
-    const totals = calculateBillTotals(currentBill.items || [], discountType, discountValue);
+    // Use functional update to ensure state consistency
+    setCurrentBill(prevBill => {
+      if (!prevBill) return prevBill;
+      
+      const totals = calculateBillTotals(prevBill.items || [], discountType, discountValue);
+      
+      return {
+        ...prevBill,
+        billDiscountType: discountType,
+        billDiscountValue: discountValue,
+        ...totals
+      };
+    });
     
-    const updatedBill = {
-      ...currentBill,
-      billDiscountType: discountType,
-      billDiscountValue: discountValue,
-      ...totals
-    };
-    
-    setCurrentBill(updatedBill);
-    console.log('Bill updated with discount:', updatedBill);
+    console.log('Bill updated with discount');
   };
 
   const calculateBillTotals = (items: BillItem[], billDiscountType?: 'fixed' | 'percentage', billDiscountValue?: number) => {

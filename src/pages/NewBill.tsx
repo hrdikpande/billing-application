@@ -54,7 +54,7 @@ const NewBill: React.FC = () => {
         clearCurrentBill();
       }
     };
-  }, [currentBill, clearCurrentBill]);
+  }, [currentBill, clearCurrentBill, currentStep]);
   
   const handleSelectCustomer = (customer: Customer) => {
     console.log('NewBill: Selected customer:', customer);
