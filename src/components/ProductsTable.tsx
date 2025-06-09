@@ -54,6 +54,31 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
     }
   };
 
+  const handleSelect = (product: Product, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('ProductsTable: Product selected:', product.name);
+    if (onSelect) {
+      onSelect(product);
+    }
+  };
+
+  const handleEdit = (product: Product, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('ProductsTable: Editing product:', product.name);
+    onEdit(product);
+  };
+
+  const handleDelete = (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    onDelete(id);
+  };
+
   return (
     <div className="card animate-fade-in">
       <div className="p-4 border-b border-gray-200">
@@ -91,7 +116,11 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                 const status = getStockStatus(stock);
                 
                 return (
-                  <tr key={product.id} className="table-row">
+                  <tr 
+                    key={product.id} 
+                    className={`table-row ${selectable ? 'cursor-pointer hover:bg-blue-50' : ''}`}
+                    onClick={selectable ? (e) => handleSelect(product, e) : undefined}
+                  >
                     <td className="font-medium text-gray-900">{product.sno || 0}</td>
                     <td>
                       <div className="flex items-center">
@@ -122,7 +151,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                       <div className="flex space-x-2">
                         {selectable && (
                           <button
-                            onClick={() => onSelect && onSelect(product)}
+                            onClick={(e) => handleSelect(product, e)}
                             className={`btn text-xs px-3 py-1 ${
                               stock > 0 
                                 ? 'btn-primary' 
@@ -134,20 +163,24 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                             {stock === 0 ? 'Out of Stock' : 'Select'}
                           </button>
                         )}
-                        <button
-                          onClick={() => onEdit(product)}
-                          className="text-blue-600 hover:text-blue-800 transition-colors"
-                          title="Edit Product"
-                        >
-                          <Pencil size={18} />
-                        </button>
-                        <button
-                          onClick={() => onDelete(product.id)}
-                          className="text-red-600 hover:text-red-800 transition-colors"
-                          title="Delete Product"
-                        >
-                          <Trash2 size={18} />
-                        </button>
+                        {!selectable && (
+                          <>
+                            <button
+                              onClick={(e) => handleEdit(product, e)}
+                              className="text-blue-600 hover:text-blue-800 transition-colors"
+                              title="Edit Product"
+                            >
+                              <Pencil size={18} />
+                            </button>
+                            <button
+                              onClick={(e) => handleDelete(product.id, e)}
+                              className="text-red-600 hover:text-red-800 transition-colors"
+                              title="Delete Product"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

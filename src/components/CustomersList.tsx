@@ -45,16 +45,29 @@ const CustomersList: React.FC<CustomersListProps> = ({
     }
   };
 
-  const handleSelect = (customer: Customer) => {
-    console.log('Customer selected:', customer);
+  const handleSelect = (customer: Customer, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('CustomersList: Customer selected:', customer.name);
     if (onSelect) {
       onSelect(customer);
     }
   };
 
-  const handleEdit = (customer: Customer) => {
-    console.log('Editing customer:', customer);
+  const handleEdit = (customer: Customer, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('CustomersList: Editing customer:', customer.name);
     onEdit(customer);
+  };
+
+  const handleDeleteClick = (id: string, customerName: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    handleDelete(id, customerName);
   };
 
   return (
@@ -82,7 +95,7 @@ const CustomersList: React.FC<CustomersListProps> = ({
               className={`p-4 transition-colors ${
                 selectable ? 'hover:bg-blue-50 cursor-pointer' : 'hover:bg-gray-50'
               }`}
-              onClick={selectable ? () => handleSelect(customer) : undefined}
+              onClick={selectable ? (e) => handleSelect(customer, e) : undefined}
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-start flex-1">
@@ -112,10 +125,7 @@ const CustomersList: React.FC<CustomersListProps> = ({
                 <div className="flex items-center space-x-2 ml-4">
                   {selectable && (
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSelect(customer);
-                      }}
+                      onClick={(e) => handleSelect(customer, e)}
                       className="btn btn-primary px-3 py-1 text-xs"
                     >
                       Select
@@ -125,20 +135,14 @@ const CustomersList: React.FC<CustomersListProps> = ({
                   {!selectable && (
                     <>
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEdit(customer);
-                        }}
+                        onClick={(e) => handleEdit(customer, e)}
                         className="text-blue-600 hover:text-blue-800 transition-colors p-1"
                         title="Edit Customer"
                       >
                         <Pencil size={18} />
                       </button>
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(customer.id, customer.name);
-                        }}
+                        onClick={(e) => handleDeleteClick(customer.id, customer.name, e)}
                         disabled={isDeleting === customer.id}
                         className="text-red-600 hover:text-red-800 transition-colors disabled:opacity-50 p-1"
                         title="Delete Customer"

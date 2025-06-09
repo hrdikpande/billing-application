@@ -36,6 +36,7 @@ const BillItemForm: React.FC<BillItemFormProps> = ({
   const [subtotal, setSubtotal] = useState(0);
   const [discountAmount, setDiscountAmount] = useState(0);
   const [total, setTotal] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [errors, setErrors] = useState<{
     quantity?: string;
@@ -110,11 +111,16 @@ const BillItemForm: React.FC<BillItemFormProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation(); // Prevent event bubbling
 
     console.log('BillItemForm: handleSubmit called');
+
+    if (isSubmitting) {
+      console.log('BillItemForm: Already submitting, ignoring');
+      return;
+    }
 
     if (!validateForm()) {
       console.log('BillItemForm: Validation failed');
@@ -127,37 +133,43 @@ const BillItemForm: React.FC<BillItemFormProps> = ({
       return;
     }
 
-    // Create complete bill item with all required fields
-    const billItem: BillItem = {
-      id: existingItem?.id || `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      product,
-      productId: product.id,
-      quantity,
-      unitPrice,
-      discountType,
-      discountValue,
-      discountPercentage: discountType === 'percentage' ? discountValue : 0,
-      discountAmount,
-      taxRate: product.taxRate || 0,
-      taxAmount: 0, // Calculate if needed
-      subtotal,
-      total,
-    };
-
-    console.log('BillItemForm: Submitting bill item:', billItem);
-    
     try {
-      onSave(billItem);
+      setIsSubmitting(true);
+
+      // Create complete bill item with all required fields
+      const billItem: BillItem = {
+        id: existingItem?.id || `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        product,
+        productId: product.id,
+        quantity,
+        unitPrice,
+        discountType,
+        discountValue,
+        discountPercentage: discountType === 'percentage' ? discountValue : 0,
+        discountAmount,
+        taxRate: product.taxRate || 0,
+        taxAmount: 0, // Calculate if needed
+        subtotal,
+        total,
+      };
+
+      console.log('BillItemForm: Submitting bill item:', billItem);
+      
+      await onSave(billItem);
       console.log('BillItemForm: onSave called successfully');
+
     } catch (error) {
       console.error('BillItemForm: Error in onSave:', error);
       toast.error('Failed to save item');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleCancel = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation(); // Prevent event bubbling
+    
     console.log('BillItemForm: handleCancel called');
     onCancel();
   };
@@ -204,6 +216,7 @@ const BillItemForm: React.FC<BillItemFormProps> = ({
           step="1"
           max={product.stockQuantity || undefined}
           required
+          disabled={isSubmitting}
         />
         {errors.quantity && (
           <p className="text-red-500 text-xs mt-1">{errors.quantity}</p>
@@ -225,6 +238,7 @@ const BillItemForm: React.FC<BillItemFormProps> = ({
             value={discountType}
             onChange={handleDiscountTypeChange}
             className="input"
+            disabled={isSubmitting}
           >
             <option value="fixed">Fixed Amount</option>
             <option value="percentage">Percentage (%)</option>
@@ -244,6 +258,7 @@ const BillItemForm: React.FC<BillItemFormProps> = ({
             min="0"
             step={discountType === 'percentage' ? '1' : '0.01'}
             max={discountType === 'percentage' ? '100' : undefined}
+            disabled={isSubmitting}
           />
           {errors.discountValue && (
             <p className="text-red-500 text-xs mt-1">{errors.discountValue}</p>
@@ -289,14 +304,23 @@ const BillItemForm: React.FC<BillItemFormProps> = ({
           type="button"
           onClick={handleCancel}
           className="btn btn-outline"
+          disabled={isSubmitting}
         >
           Cancel
         </button>
         <button 
           type="submit" 
           className="btn btn-primary"
+          disabled={isSubmitting}
         >
-          {existingItem ? 'Update Item' : 'Add to Bill'}
+          {isSubmitting ? (
+            <div className="flex items-center">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              {existingItem ? 'Updating...' : 'Adding...'}
+            </div>
+          ) : (
+            existingItem ? 'Update Item' : 'Add to Bill'
+          )}
         </button>
       </div>
     </form>

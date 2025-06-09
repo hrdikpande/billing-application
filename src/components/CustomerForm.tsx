@@ -38,6 +38,8 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
     email?: string;
   }>({});
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   useEffect(() => {
     if (customer) {
       setFormData({
@@ -91,24 +93,54 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
 
-    if (!validateForm()) {
+    console.log('CustomerForm: handleSubmit called');
+
+    if (isSubmitting) {
+      console.log('CustomerForm: Already submitting, ignoring');
       return;
     }
 
-    const savedCustomer: Customer = {
-      id: customer?.id || uuidv4(),
-      name: formData.name.trim(),
-      phone: formData.phone.trim(),
-      email: formData.email.trim() || undefined,
-      address: formData.address.trim() || undefined,
-      gstin: formData.gstin.trim() || undefined,
-      createdAt: customer?.createdAt || Date.now(),
-    };
+    if (!validateForm()) {
+      console.log('CustomerForm: Validation failed');
+      return;
+    }
 
-    onSave(savedCustomer);
+    try {
+      setIsSubmitting(true);
+
+      const savedCustomer: Customer = {
+        id: customer?.id || uuidv4(),
+        name: formData.name.trim(),
+        phone: formData.phone.trim(),
+        email: formData.email.trim() || undefined,
+        address: formData.address.trim() || undefined,
+        gstin: formData.gstin.trim() || undefined,
+        createdAt: customer?.createdAt || Date.now(),
+        isActive: true,
+        updatedAt: Date.now()
+      };
+
+      console.log('CustomerForm: Calling onSave with:', savedCustomer);
+      await onSave(savedCustomer);
+      console.log('CustomerForm: onSave completed successfully');
+
+    } catch (error) {
+      console.error('CustomerForm: Error in onSave:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCancel = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('CustomerForm: handleCancel called');
+    onCancel();
   };
 
   return (
@@ -125,6 +157,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
           onChange={handleChange}
           className={`input ${errors.name ? 'border-red-500' : ''}`}
           required
+          disabled={isSubmitting}
         />
         {errors.name && (
           <p className="text-red-500 text-xs mt-1">{errors.name}</p>
@@ -143,6 +176,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
           onChange={handleChange}
           className={`input ${errors.phone ? 'border-red-500' : ''}`}
           required
+          disabled={isSubmitting}
         />
         {errors.phone && (
           <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
@@ -160,6 +194,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
           value={formData.email}
           onChange={handleChange}
           className={`input ${errors.email ? 'border-red-500' : ''}`}
+          disabled={isSubmitting}
         />
         {errors.email && (
           <p className="text-red-500 text-xs mt-1">{errors.email}</p>
@@ -177,6 +212,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
           onChange={handleChange}
           className="input h-20"
           rows={3}
+          disabled={isSubmitting}
         />
       </div>
 
@@ -192,19 +228,32 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
           onChange={handleChange}
           className="input"
           placeholder="22AAAAA0000A1Z5"
+          disabled={isSubmitting}
         />
       </div>
 
       <div className="flex justify-end space-x-3 pt-4">
         <button
           type="button"
-          onClick={onCancel}
+          onClick={handleCancel}
           className="btn btn-outline"
+          disabled={isSubmitting}
         >
           Cancel
         </button>
-        <button type="submit" className="btn btn-primary">
-          {customer ? 'Update Customer' : 'Add Customer'}
+        <button 
+          type="submit" 
+          className="btn btn-primary"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <div className="flex items-center">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              {customer ? 'Updating...' : 'Adding...'}
+            </div>
+          ) : (
+            customer ? 'Update Customer' : 'Add Customer'
+          )}
         </button>
       </div>
     </form>
