@@ -105,17 +105,43 @@ const BillHistory: React.FC = () => {
     }
   };
 
-  // Helper function to get items count with proper validation
+  // Helper function to get items count with proper validation and debugging
   const getItemsCount = (bill: any): number => {
-    if (!bill || !bill.items) return 0;
-    if (!Array.isArray(bill.items)) return 0;
-    return bill.items.length;
+    console.log('BillHistory: Checking items count for bill:', bill.billNumber);
+    console.log('BillHistory: Bill items:', bill.items);
+    console.log('BillHistory: Items type:', typeof bill.items);
+    console.log('BillHistory: Items is array:', Array.isArray(bill.items));
+    
+    if (!bill) {
+      console.log('BillHistory: No bill provided');
+      return 0;
+    }
+    
+    if (!bill.items) {
+      console.log('BillHistory: No items property on bill');
+      return 0;
+    }
+    
+    if (!Array.isArray(bill.items)) {
+      console.log('BillHistory: Items is not an array:', bill.items);
+      return 0;
+    }
+    
+    const count = bill.items.length;
+    console.log('BillHistory: Final items count:', count);
+    return count;
   };
 
   // Helper function to get items display text
   const getItemsDisplayText = (bill: any): string => {
     const count = getItemsCount(bill);
     return `${count} ${count === 1 ? 'item' : 'items'}`;
+  };
+
+  // Helper function to calculate total quantity sold
+  const getTotalQuantitySold = (bill: any): number => {
+    if (!bill || !bill.items || !Array.isArray(bill.items)) return 0;
+    return bill.items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
   };
 
   return (
@@ -182,146 +208,151 @@ const BillHistory: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {sortedBills.map((bill) => (
-                  <tr key={bill.id} className="table-row">
-                    <td className="font-medium text-gray-900">
-                      {bill.billNumber}
-                    </td>
-                    <td className="text-sm text-gray-500">
-                      {formatDateTime(bill.createdAt)}
-                    </td>
-                    <td>
-                      <div>
-                        <div className="font-medium text-gray-900">
-                          {bill.customer.name}
+                {sortedBills.map((bill) => {
+                  const itemsCount = getItemsCount(bill);
+                  const totalQuantity = getTotalQuantitySold(bill);
+                  
+                  return (
+                    <tr key={bill.id} className="table-row">
+                      <td className="font-medium text-gray-900">
+                        {bill.billNumber}
+                      </td>
+                      <td className="text-sm text-gray-500">
+                        {formatDateTime(bill.createdAt)}
+                      </td>
+                      <td>
+                        <div>
+                          <div className="font-medium text-gray-900">
+                            {bill.customer.name}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {bill.customer.phone}
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-500">
-                          {bill.customer.phone}
+                      </td>
+                      <td className="text-sm text-gray-500">
+                        <div className="flex flex-col">
+                          <span className="font-medium text-gray-900">
+                            {getItemsDisplayText(bill)}
+                          </span>
+                          {itemsCount > 0 && (
+                            <span className="text-xs text-gray-500">
+                              Qty: {totalQuantity}
+                            </span>
+                          )}
                         </div>
-                      </div>
-                    </td>
-                    <td className="text-sm text-gray-500">
-                      <div className="flex flex-col">
-                        <span className="font-medium text-gray-900">
-                          {getItemsDisplayText(bill)}
-                        </span>
-                        {getItemsCount(bill) > 0 && (
-                          <span className="text-xs text-gray-500">
-                            Total: {formatCurrency(bill.total)}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td>
-                      {getStatusBadge(bill.paymentStatus)}
-                    </td>
-                    <td className="font-medium text-gray-900">
-                      {formatCurrency(bill.total)}
-                    </td>
-                    <td>
-                      <div className="flex space-x-2">
-                        <Link
-                          to={`/view-bill/${bill.id}`}
-                          className="text-blue-600 hover:text-blue-800 transition-colors"
-                          title="View Bill"
-                        >
-                          <Eye size={18} />
-                        </Link>
-                        
-                        {/* Only show print/download if bill has items */}
-                        {getItemsCount(bill) > 0 ? (
-                          <>
-                            {/* Print Dropdown */}
-                            <div className="relative">
-                              <button
-                                onClick={() => setShowSizeOptions(showSizeOptions === `print-${bill.id}` ? null : `print-${bill.id}`)}
-                                disabled={isGeneratingPDF === bill.id}
-                                className="text-green-600 hover:text-green-800 transition-colors disabled:opacity-50"
-                                title="Print Bill"
-                              >
-                                {isGeneratingPDF === bill.id ? (
-                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
-                                ) : (
-                                  <Printer size={18} />
+                      </td>
+                      <td>
+                        {getStatusBadge(bill.paymentStatus)}
+                      </td>
+                      <td className="font-medium text-gray-900">
+                        {formatCurrency(bill.total)}
+                      </td>
+                      <td>
+                        <div className="flex space-x-2">
+                          <Link
+                            to={`/view-bill/${bill.id}`}
+                            className="text-blue-600 hover:text-blue-800 transition-colors"
+                            title="View Bill"
+                          >
+                            <Eye size={18} />
+                          </Link>
+                          
+                          {/* Only show print/download if bill has items */}
+                          {itemsCount > 0 ? (
+                            <>
+                              {/* Print Dropdown */}
+                              <div className="relative">
+                                <button
+                                  onClick={() => setShowSizeOptions(showSizeOptions === `print-${bill.id}` ? null : `print-${bill.id}`)}
+                                  disabled={isGeneratingPDF === bill.id}
+                                  className="text-green-600 hover:text-green-800 transition-colors disabled:opacity-50"
+                                  title="Print Bill"
+                                >
+                                  {isGeneratingPDF === bill.id ? (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
+                                  ) : (
+                                    <Printer size={18} />
+                                  )}
+                                </button>
+                                
+                                {showSizeOptions === `print-${bill.id}` && (
+                                  <div className="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
+                                    <button
+                                      onClick={() => handlePrintPDF(bill.id, 'A5')}
+                                      className="flex items-center w-full px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
+                                      disabled={isGeneratingPDF === bill.id}
+                                    >
+                                      <FileText size={14} className="mr-2" />
+                                      Print A5
+                                    </button>
+                                    <button
+                                      onClick={() => handlePrintPDF(bill.id, 'A4')}
+                                      className="flex items-center w-full px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
+                                      disabled={isGeneratingPDF === bill.id}
+                                    >
+                                      <FileDown size={14} className="mr-2" />
+                                      Print A4
+                                    </button>
+                                  </div>
                                 )}
-                              </button>
+                              </div>
                               
-                              {showSizeOptions === `print-${bill.id}` && (
-                                <div className="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
-                                  <button
-                                    onClick={() => handlePrintPDF(bill.id, 'A5')}
-                                    className="flex items-center w-full px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
-                                    disabled={isGeneratingPDF === bill.id}
-                                  >
-                                    <FileText size={14} className="mr-2" />
-                                    Print A5
-                                  </button>
-                                  <button
-                                    onClick={() => handlePrintPDF(bill.id, 'A4')}
-                                    className="flex items-center w-full px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
-                                    disabled={isGeneratingPDF === bill.id}
-                                  >
-                                    <FileDown size={14} className="mr-2" />
-                                    Print A4
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                            
-                            {/* Download Dropdown */}
-                            <div className="relative">
-                              <button
-                                onClick={() => setShowSizeOptions(showSizeOptions === `download-${bill.id}` ? null : `download-${bill.id}`)}
-                                disabled={isGeneratingPDF === bill.id}
-                                className="text-indigo-600 hover:text-indigo-800 transition-colors disabled:opacity-50"
-                                title="Download PDF"
-                              >
-                                {isGeneratingPDF === bill.id ? (
-                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
-                                ) : (
-                                  <Download size={18} />
+                              {/* Download Dropdown */}
+                              <div className="relative">
+                                <button
+                                  onClick={() => setShowSizeOptions(showSizeOptions === `download-${bill.id}` ? null : `download-${bill.id}`)}
+                                  disabled={isGeneratingPDF === bill.id}
+                                  className="text-indigo-600 hover:text-indigo-800 transition-colors disabled:opacity-50"
+                                  title="Download PDF"
+                                >
+                                  {isGeneratingPDF === bill.id ? (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+                                  ) : (
+                                    <Download size={18} />
+                                  )}
+                                </button>
+                                
+                                {showSizeOptions === `download-${bill.id}` && (
+                                  <div className="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
+                                    <button
+                                      onClick={() => handleDownloadPDF(bill.id, 'A5')}
+                                      className="flex items-center w-full px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
+                                      disabled={isGeneratingPDF === bill.id}
+                                    >
+                                      <FileText size={14} className="mr-2" />
+                                      A5 PDF
+                                    </button>
+                                    <button
+                                      onClick={() => handleDownloadPDF(bill.id, 'A4')}
+                                      className="flex items-center w-full px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
+                                      disabled={isGeneratingPDF === bill.id}
+                                    >
+                                      <FileDown size={14} className="mr-2" />
+                                      A4 PDF
+                                    </button>
+                                  </div>
                                 )}
-                              </button>
-                              
-                              {showSizeOptions === `download-${bill.id}` && (
-                                <div className="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
-                                  <button
-                                    onClick={() => handleDownloadPDF(bill.id, 'A5')}
-                                    className="flex items-center w-full px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
-                                    disabled={isGeneratingPDF === bill.id}
-                                  >
-                                    <FileText size={14} className="mr-2" />
-                                    A5 PDF
-                                  </button>
-                                  <button
-                                    onClick={() => handleDownloadPDF(bill.id, 'A4')}
-                                    className="flex items-center w-full px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
-                                    disabled={isGeneratingPDF === bill.id}
-                                  >
-                                    <FileDown size={14} className="mr-2" />
-                                    A4 PDF
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </>
-                        ) : (
-                          <span className="text-xs text-gray-400" title="No items in bill">
-                            No PDF
-                          </span>
-                        )}
-                        
-                        <button
-                          onClick={() => handleDelete(bill.id)}
-                          className="text-red-600 hover:text-red-800 transition-colors"
-                          title="Delete Bill"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                              </div>
+                            </>
+                          ) : (
+                            <span className="text-xs text-gray-400" title="No items in bill">
+                              No PDF
+                            </span>
+                          )}
+                          
+                          <button
+                            onClick={() => handleDelete(bill.id)}
+                            className="text-red-600 hover:text-red-800 transition-colors"
+                            title="Delete Bill"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -367,8 +398,7 @@ const BillHistory: React.FC = () => {
             <div className="text-sm font-medium text-purple-600">Items Sold</div>
             <div className="text-2xl font-bold text-purple-900">
               {bills.reduce((sum, bill) => {
-                const itemCount = getItemsCount(bill);
-                const totalQuantity = bill.items?.reduce((s: number, item: any) => s + (item.quantity || 0), 0) || 0;
+                const totalQuantity = getTotalQuantitySold(bill);
                 return sum + totalQuantity;
               }, 0)}
             </div>
