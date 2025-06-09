@@ -29,7 +29,7 @@ const NewBill: React.FC = () => {
     clearCurrentBill
   } = useEnhancedBilling();
   
-  const [step, setStep] = useState<'select-customer' | 'create-bill'>('select-customer');
+  // Local state management
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [showAddItem, setShowAddItem] = useState(false);
   const [showProductSelection, setShowProductSelection] = useState(false);
@@ -39,15 +39,11 @@ const NewBill: React.FC = () => {
   const [showBillDiscount, setShowBillDiscount] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
+  // Determine current step based on currentBill state
+  const currentStep = currentBill ? 'create-bill' : 'select-customer';
+  
   useEffect(() => {
-    // Sync step state with currentBill state
-    if (currentBill) {
-      setStep('create-bill');
-    } else {
-      setStep('select-customer');
-    }
-    
-    // Cleanup function to clear current bill when leaving
+    // Cleanup function to clear current bill when leaving (only if no items)
     return () => {
       if (currentBill && (!currentBill.items || currentBill.items.length === 0)) {
         clearCurrentBill();
@@ -58,8 +54,8 @@ const NewBill: React.FC = () => {
   const handleSelectCustomer = (customer: Customer) => {
     console.log('Selected customer:', customer);
     initNewBill(customer);
-    setStep('create-bill');
     setShowAddCustomer(false);
+    toast.success(`Customer ${customer.name} selected`);
   };
   
   const handleAddCustomer = () => {
@@ -102,7 +98,6 @@ const NewBill: React.FC = () => {
     
     if (!currentBill) {
       toast.error('Please select a customer first');
-      setStep('select-customer');
       return;
     }
     
@@ -182,11 +177,13 @@ const NewBill: React.FC = () => {
         toast.success('Item added to bill');
       }
       
-      // Reset form states
+      // Reset form states - IMPORTANT: Don't clear currentBill
       setShowAddItem(false);
       setShowProductSelection(false);
       setSelectedProduct(null);
       setEditingItemIndex(null);
+      
+      console.log('Item saved successfully, staying on bill page');
       
     } catch (error) {
       console.error('Error saving item:', error);
@@ -255,8 +252,8 @@ const NewBill: React.FC = () => {
     return currentBill.items.reduce((sum, item) => sum + (item.discountAmount || 0), 0);
   };
   
-  // If we're still at the customer selection step
-  if (step === 'select-customer') {
+  // Customer Selection Step
+  if (currentStep === 'select-customer') {
     return (
       <div className="space-y-6 animate-fade-in">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
@@ -317,7 +314,7 @@ const NewBill: React.FC = () => {
     );
   }
   
-  // If we're at the bill creation step
+  // Bill Creation Step
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Bill Header */}
@@ -365,14 +362,15 @@ const NewBill: React.FC = () => {
         </div>
         
         <div className="p-4 sm:p-6">
-          {/* Product Selection */}
+          {/* Product Selection Modal */}
           {showProductSelection && (
-            <div className="bg-gray-50 p-4 rounded-lg mb-6">
+            <div className="bg-gray-50 p-4 rounded-lg mb-6 border-2 border-blue-200">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium text-gray-900">Select Product</h3>
                 <button
                   onClick={() => setShowProductSelection(false)}
-                  className="text-gray-400 hover:text-gray-600 text-xl font-bold"
+                  className="text-gray-400 hover:text-gray-600 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 transition-colors"
+                  title="Close"
                 >
                   ×
                 </button>
@@ -400,12 +398,21 @@ const NewBill: React.FC = () => {
             </div>
           )}
 
-          {/* Item Form */}
+          {/* Item Form Modal */}
           {showAddItem && selectedProduct && (
-            <div className="bg-gray-50 p-4 rounded-lg mb-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                {editingItemIndex !== null ? 'Edit Item' : 'Add Item to Bill'}
-              </h3>
+            <div className="bg-blue-50 p-4 rounded-lg mb-6 border-2 border-blue-300">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  {editingItemIndex !== null ? 'Edit Item' : 'Add Item to Bill'}
+                </h3>
+                <button
+                  onClick={handleCancelItemForm}
+                  className="text-gray-400 hover:text-gray-600 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 transition-colors"
+                  title="Close"
+                >
+                  ×
+                </button>
+              </div>
               
               <BillItemForm
                 product={selectedProduct}
